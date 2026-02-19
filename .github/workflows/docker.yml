@@ -11,6 +11,7 @@ env:
 permissions:
   contents: read
   packages: write
+  security-events: write
 
 jobs:
   build-and-push:
@@ -52,3 +53,17 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}-${{ matrix.app }}:latest
+          format: sarif
+          output: trivy-${{ matrix.app }}.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.app }}.sarif
