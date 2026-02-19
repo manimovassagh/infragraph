@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* React Flow dark theme overrides */
+.react-flow__background {
+  background-color: #0a0f1e;
+}
+
+.react-flow__controls button {
+  background-color: #111b33;
+  border-color: #1a2647;
+  color: #94a3b8;
+}
+
+.react-flow__controls button:hover {
+  background-color: #1a2647;
+}
+
+.react-flow__minimap {
+  background-color: #0d1426;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(10, 15, 30, 0.6);
+}
+
+.react-flow__edge-path {
+  stroke: #475569;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #94a3b8;
+}
+
+/* Node card base style */
+.node-card {
+  @apply flex flex-col gap-1 px-3 py-2 rounded-md border text-sm font-medium
+         bg-navy-800 text-slate-200 cursor-pointer select-none;
+}
