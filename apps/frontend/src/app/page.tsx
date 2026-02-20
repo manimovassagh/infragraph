@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ParseResponse } from '@awsarchitect/shared';
 import { Upload } from '@/components/Upload';
 import { Canvas } from '@/components/Canvas';
+import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { parseFile } from '@/lib/api';
 
 type AppState =
@@ -48,6 +49,10 @@ export default function Home() {
   }
 
   if (state.view === 'canvas') {
+    const selectedResource = state.selectedNodeId
+      ? state.data.resources.find((r) => r.id === state.selectedNodeId)
+      : null;
+
     return (
       <div className="flex h-screen">
         <div className="flex-1">
@@ -62,13 +67,25 @@ export default function Home() {
           />
         </div>
         <div className="w-80 border-l border-slate-200 bg-white p-4 overflow-y-auto shadow-sm">
-          {state.selectedNodeId ? (
-            <div>
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Selected</p>
-              <p className="text-slate-800 font-medium mt-1">{state.selectedNodeId}</p>
-            </div>
+          {selectedResource ? (
+            <NodeDetailPanel
+              resource={selectedResource}
+              edges={state.data.edges}
+              resources={state.data.resources}
+              onClose={() =>
+                setState((prev) =>
+                  prev.view === 'canvas' ? { ...prev, selectedNodeId: null } : prev
+                )
+              }
+            />
           ) : (
-            <p className="text-sm text-slate-400">Click a node to inspect it</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <svg className="h-12 w-12 text-slate-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+              </svg>
+              <p className="text-sm text-slate-400">Click a node to inspect it</p>
+              <p className="text-xs text-slate-300 mt-1">View attributes, tags, and connections</p>
+            </div>
           )}
         </div>
       </div>
