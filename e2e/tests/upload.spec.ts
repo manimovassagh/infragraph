@@ -6,6 +6,14 @@ const FIXTURE = path.resolve(
   '../../apps/backend/src/fixtures/sample.tfstate'
 );
 
+/** Select fixture file and click Parse to reach the canvas view */
+async function uploadAndParse(page: import('@playwright/test').Page) {
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles(FIXTURE);
+  await page.getByRole('button', { name: 'Parse' }).click();
+  await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
+}
+
 test.describe('Upload flow', () => {
   test('shows upload area on initial load', async ({ page }) => {
     await page.goto('/');
@@ -14,22 +22,12 @@ test.describe('Upload flow', () => {
 
   test('uploads tfstate and shows canvas', async ({ page }) => {
     await page.goto('/');
-
-    // Find the file input and upload
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles(FIXTURE);
-
-    // Wait for canvas to render (React Flow viewport)
-    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
+    await uploadAndParse(page);
   });
 
   test('canvas renders VPC node after upload', async ({ page }) => {
     await page.goto('/');
-
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles(FIXTURE);
-
-    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
+    await uploadAndParse(page);
 
     // Check that at least one VPC node is rendered
     await expect(page.getByText('main-vpc')).toBeVisible({ timeout: 5_000 });
@@ -37,11 +35,7 @@ test.describe('Upload flow', () => {
 
   test('canvas renders multiple resource types', async ({ page }) => {
     await page.goto('/');
-
-    const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles(FIXTURE);
-
-    await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
+    await uploadAndParse(page);
 
     // Verify key resources are present
     await expect(page.getByText('web-server')).toBeVisible({ timeout: 5_000 });

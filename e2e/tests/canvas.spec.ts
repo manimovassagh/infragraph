@@ -11,6 +11,7 @@ test.describe('Canvas interactions', () => {
     await page.goto('/');
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(FIXTURE);
+    await page.getByRole('button', { name: 'Parse' }).click();
     await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
   });
 
@@ -23,7 +24,7 @@ test.describe('Canvas interactions', () => {
   });
 
   test('edges are rendered', async ({ page }) => {
-    // React Flow renders edges as SVG paths
+    // Only non-containment edges remain (secured by, depends on)
     const edges = page.locator('.react-flow__edge');
     await expect(edges.first()).toBeVisible({ timeout: 5_000 });
     const count = await edges.count();
