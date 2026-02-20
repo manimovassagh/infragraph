@@ -2,7 +2,7 @@ export const swaggerSpec = {
   openapi: '3.0.3',
   info: {
     title: 'AWSArchitect API',
-    version: '0.1.0',
+    version: '1.0.0',
     description: 'Parse Terraform state files and return interactive graph data for AWS infrastructure visualization.',
   },
   servers: [{ url: 'http://localhost:3001', description: 'Local dev' }],
@@ -20,7 +20,7 @@ export const swaggerSpec = {
                   type: 'object',
                   properties: {
                     status: { type: 'string', example: 'ok' },
-                    version: { type: 'string', example: '0.1.0' },
+                    version: { type: 'string', example: '1.0.0' },
                   },
                 },
               },

@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useRef, useMemo, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { toPng } from 'html-to-image';
 import ReactFlow, {
   Background,
   Controls,
   MiniMap,
-  useNodesState,
   type Node,
   type Edge,
 } from 'reactflow';
@@ -81,16 +81,85 @@ interface CanvasProps {
   graphNodes: GraphNode[];
   graphEdges: GraphEdge[];
   selectedNodeId: string | null;
+  searchQuery: string;
+  hiddenTypes?: Set<string>;
   onNodeSelect: (nodeId: string | null) => void;
 }
 
-export function Canvas({ graphNodes, graphEdges, selectedNodeId, onNodeSelect }: CanvasProps) {
-  const [nodes, , onNodesChange] = useNodesState(graphNodes as Node<GraphNodeData>[]);
+function nodeMatchesSearch(node: GraphNode, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const r = node.data.resource;
+  return (
+    r.displayName.toLowerCase().includes(q) ||
+    r.type.toLowerCase().includes(q) ||
+    r.id.toLowerCase().includes(q) ||
+    r.name.toLowerCase().includes(q) ||
+    Object.values(r.tags).some((v) => v.toLowerCase().includes(q)) ||
+    Object.values(r.attributes).some((v) => typeof v === 'string' && v.toLowerCase().includes(q))
+  );
+}
+
+export interface CanvasHandle {
+  exportPng: () => Promise<void>;
+}
+
+export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({ graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, onNodeSelect }, ref) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const exportPng = useCallback(async () => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const dataUrl = await toPng(el, { backgroundColor: '#f8fafc' });
+    const link = document.createElement('a');
+    link.download = 'architecture.png';
+    link.href = dataUrl;
+    link.click();
+  }, []);
+
+  useImperativeHandle(ref, () => ({ exportPng }));
+  // Filter out hidden resource types, cascading to children of hidden parents
+  const visibleNodes = useMemo(() => {
+    if (!hiddenTypes || hiddenTypes.size === 0) return graphNodes;
+    const hiddenNodeIds = new Set(
+      graphNodes.filter((n) => hiddenTypes.has(n.data.resource.type)).map((n) => n.id)
+    );
+    // Hide nodes whose type is hidden OR whose parent is hidden
+    return graphNodes.filter(
+      (n) => !hiddenTypes.has(n.data.resource.type) && (!n.parentNode || !hiddenNodeIds.has(n.parentNode))
+    );
+  }, [graphNodes, hiddenTypes]);
+
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+
+  const visibleEdges = useMemo(() => {
+    if (!hiddenTypes || hiddenTypes.size === 0) return graphEdges;
+    return graphEdges.filter((e) => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target));
+  }, [graphEdges, hiddenTypes, visibleNodeIds]);
+
+  // Apply search dimming to nodes
+  const matchingNodeIds = useMemo(() => {
+    if (!searchQuery) return null;
+    return new Set(visibleNodes.filter((n) => nodeMatchesSearch(n, searchQuery)).map((n) => n.id));
+  }, [visibleNodes, searchQuery]);
+
+  const nodes = useMemo(() => {
+    return visibleNodes.map((n) => {
+      const isDimmed = matchingNodeIds !== null && !matchingNodeIds.has(n.id);
+      return {
+        ...n,
+        style: {
+          ...n.style,
+          opacity: isDimmed ? 0.25 : 1,
+        },
+      } as Node<GraphNodeData>;
+    });
+  }, [visibleNodes, matchingNodeIds]);
 
   // Style edges with color-coding and selection highlighting
   const edges = useMemo(
     () =>
-      graphEdges.map((e) => {
+      visibleEdges.map((e) => {
         const isConnected = selectedNodeId
           ? e.source === selectedNodeId || e.target === selectedNodeId
           : false;
@@ -120,28 +189,29 @@ export function Canvas({ graphNodes, graphEdges, selectedNodeId, onNodeSelect }:
           labelBgBorderRadius: 3,
         };
       }),
-    [graphEdges, selectedNodeId]
+    [visibleEdges, selectedNodeId]
   ) as Edge[];
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      nodeTypes={nodeTypes}
-      onNodeClick={(_, node) => onNodeSelect(node.id)}
-      onPaneClick={() => onNodeSelect(null)}
-      fitView
-      minZoom={0.1}
-      maxZoom={2}
-      defaultEdgeOptions={defaultEdgeOptions}
-    >
-      <Background color="#cbd5e1" gap={20} size={1} />
-      <Controls />
-      <MiniMap
-        nodeColor={minimapNodeColor}
-        maskColor="rgba(248, 250, 252, 0.7)"
-      />
-    </ReactFlow>
+    <div ref={wrapperRef} className="w-full h-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodeClick={(_, node) => onNodeSelect(node.id)}
+        onPaneClick={() => onNodeSelect(null)}
+        fitView
+        minZoom={0.1}
+        maxZoom={2}
+        defaultEdgeOptions={defaultEdgeOptions}
+      >
+        <Background color="#cbd5e1" gap={20} size={1} />
+        <Controls />
+        <MiniMap
+          nodeColor={minimapNodeColor}
+          maskColor="rgba(248, 250, 252, 0.7)"
+        />
+      </ReactFlow>
+    </div>
   );
-}
+});
