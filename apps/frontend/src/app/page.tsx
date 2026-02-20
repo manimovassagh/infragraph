@@ -6,6 +6,7 @@ import { Upload } from '@/components/Upload';
 import { Canvas } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { ResourceSummary } from '@/components/ResourceSummary';
+import { SearchBar } from '@/components/SearchBar';
 import { parseFile } from '@/lib/api';
 
 type AppState =
@@ -16,6 +17,7 @@ type AppState =
 
 export default function Home() {
   const [state, setState] = useState<AppState>({ view: 'upload' });
+  const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFileAccepted(file: File) {
@@ -97,6 +99,7 @@ export default function Home() {
         <div className="flex flex-1 min-h-0">
           <div className="flex-1 relative">
             <ResourceSummary resources={state.data.resources} />
+            <SearchBar onSearch={setSearchQuery} />
             {/* Upload new file button */}
             <button
               onClick={handleQuickUpload}
@@ -112,6 +115,7 @@ export default function Home() {
               graphNodes={state.data.nodes}
               graphEdges={state.data.edges}
               selectedNodeId={state.selectedNodeId}
+              searchQuery={searchQuery}
               onNodeSelect={(id) =>
                 setState((prev) =>
                   prev.view === 'canvas' ? { ...prev, selectedNodeId: id } : prev
@@ -146,6 +150,20 @@ export default function Home() {
     );
   }
 
+  async function handleTrySample() {
+    setState({ view: 'loading' });
+    try {
+      const res = await fetch('/sample.tfstate');
+      const text = await res.text();
+      const blob = new Blob([text], { type: 'application/json' });
+      const file = new File([blob], 'sample.tfstate');
+      const data = await parseFile(file);
+      setState({ view: 'canvas', data, selectedNodeId: null, fileName: 'sample.tfstate' });
+    } catch (err) {
+      setState({ view: 'error', message: err instanceof Error ? err.message : 'Failed to load sample' });
+    }
+  }
+
   // Default: upload view
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
@@ -154,6 +172,12 @@ export default function Home() {
       <div className="w-full max-w-lg">
         <Upload onFileAccepted={handleFileAccepted} />
       </div>
+      <button
+        onClick={handleTrySample}
+        className="text-xs text-slate-400 hover:text-[#ED7100] transition-colors underline underline-offset-2"
+      >
+        Try with sample infrastructure
+      </button>
     </main>
   );
 }

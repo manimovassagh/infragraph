@@ -5,7 +5,6 @@ import ReactFlow, {
   Background,
   Controls,
   MiniMap,
-  useNodesState,
   type Node,
   type Edge,
 } from 'reactflow';
@@ -81,11 +80,43 @@ interface CanvasProps {
   graphNodes: GraphNode[];
   graphEdges: GraphEdge[];
   selectedNodeId: string | null;
+  searchQuery: string;
   onNodeSelect: (nodeId: string | null) => void;
 }
 
-export function Canvas({ graphNodes, graphEdges, selectedNodeId, onNodeSelect }: CanvasProps) {
-  const [nodes, , onNodesChange] = useNodesState(graphNodes as Node<GraphNodeData>[]);
+function nodeMatchesSearch(node: GraphNode, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const r = node.data.resource;
+  return (
+    r.displayName.toLowerCase().includes(q) ||
+    r.type.toLowerCase().includes(q) ||
+    r.id.toLowerCase().includes(q) ||
+    r.name.toLowerCase().includes(q) ||
+    Object.values(r.tags).some((v) => v.toLowerCase().includes(q)) ||
+    Object.values(r.attributes).some((v) => typeof v === 'string' && v.toLowerCase().includes(q))
+  );
+}
+
+export function Canvas({ graphNodes, graphEdges, selectedNodeId, searchQuery, onNodeSelect }: CanvasProps) {
+  // Apply search dimming to nodes
+  const matchingNodeIds = useMemo(() => {
+    if (!searchQuery) return null;
+    return new Set(graphNodes.filter((n) => nodeMatchesSearch(n, searchQuery)).map((n) => n.id));
+  }, [graphNodes, searchQuery]);
+
+  const nodes = useMemo(() => {
+    return graphNodes.map((n) => {
+      const isDimmed = matchingNodeIds !== null && !matchingNodeIds.has(n.id);
+      return {
+        ...n,
+        style: {
+          ...n.style,
+          opacity: isDimmed ? 0.25 : 1,
+        },
+      } as Node<GraphNodeData>;
+    });
+  }, [graphNodes, matchingNodeIds]);
 
   // Style edges with color-coding and selection highlighting
   const edges = useMemo(
@@ -127,7 +158,6 @@ export function Canvas({ graphNodes, graphEdges, selectedNodeId, onNodeSelect }:
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      onNodesChange={onNodesChange}
       nodeTypes={nodeTypes}
       onNodeClick={(_, node) => onNodeSelect(node.id)}
       onPaneClick={() => onNodeSelect(null)}
