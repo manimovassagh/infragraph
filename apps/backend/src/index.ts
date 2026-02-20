@@ -13,7 +13,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', version: '0.1.0' });
+  res.json({ status: 'ok', version: '1.0.0' });
 });
 
 app.use('/api', parseRouter);
