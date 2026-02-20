@@ -59,9 +59,10 @@ interface NodeDetailPanelProps {
   edges: GraphEdge[];
   resources: AwsResource[];
   onClose: () => void;
+  onSelectResource?: (nodeId: string) => void;
 }
 
-export function NodeDetailPanel({ resource, edges, resources, onClose }: NodeDetailPanelProps) {
+export function NodeDetailPanel({ resource, edges, resources, onClose, onSelectResource }: NodeDetailPanelProps) {
   const [copied, setCopied] = useState(false);
   const meta = TYPE_META[resource.type] ?? { label: resource.type, color: '#7B8794', Icon: GenericIcon };
   const { Icon } = meta;
@@ -184,7 +185,11 @@ export function NodeDetailPanel({ resource, edges, resources, onClose }: NodeDet
               const otherMeta = TYPE_META[otherResource!.type] ?? { label: otherResource!.type, color: '#7B8794', Icon: GenericIcon };
               const OtherIcon = otherMeta.Icon;
               return (
-                <div key={edge.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded">
+                <button
+                  key={edge.id}
+                  onClick={() => onSelectResource?.(otherResource!.id)}
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded w-full text-left hover:bg-slate-100 transition-colors cursor-pointer"
+                >
                   <OtherIcon className="h-5 w-5 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-slate-700 truncate">{otherResource!.displayName}</p>
@@ -192,7 +197,10 @@ export function NodeDetailPanel({ resource, edges, resources, onClose }: NodeDet
                       {direction === 'outgoing' ? '→' : '←'} {edge.label}
                     </p>
                   </div>
-                </div>
+                  <svg className="h-3.5 w-3.5 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
               );
             })}
           </div>

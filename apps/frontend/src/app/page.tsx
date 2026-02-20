@@ -172,6 +172,11 @@ export default function Home() {
                     prev.view === 'canvas' ? { ...prev, selectedNodeId: null } : prev
                   )
                 }
+                onSelectResource={(nodeId) =>
+                  setState((prev) =>
+                    prev.view === 'canvas' ? { ...prev, selectedNodeId: nodeId } : prev
+                  )
+                }
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center">
