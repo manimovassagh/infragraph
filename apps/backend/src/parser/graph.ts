@@ -48,26 +48,31 @@ const EDGE_ATTRS: [string, string][] = [
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
-const VPC_W = 900;
-const VPC_H = 700;
+const VPC_PAD_X = 30;
+const VPC_PAD_Y = 50;
 const VPC_GAP = 60;
+const SUBNET_GAP_X = 40;       // horizontal gap between subnets
+const SUBNET_GAP_Y = 40;       // vertical gap between subnet rows
 
-const SUBNET_W = 380;
-const SUBNET_H = 280;
-const SUBNET_PAD_X = 30;
-const SUBNET_PAD_Y = 100;
-const SUBNET_COL_GAP = 420;
-const SUBNET_ROW_GAP = 320;
+const SUBNET_PAD_X = 20;       // padding inside subnet
+const SUBNET_PAD_Y = 50;       // top padding (room for subnet header)
+const SUBNET_COLS = 2;          // max resources per row inside subnet
 
-const RESOURCE_W = 200;
-const RESOURCE_H = 90;
-const RESOURCE_PAD_X = 20;
-const RESOURCE_PAD_Y = 60;
-const RESOURCE_COL_GAP = 230;
-const RESOURCE_ROW_GAP = 120;
+const RESOURCE_W = 210;
+const RESOURCE_H = 100;
+const RESOURCE_GAP_X = 20;     // gap between resource columns
+const RESOURCE_GAP_Y = 20;     // gap between resource rows
 
-const ROOT_X = 980;
-const ROOT_Y_GAP = 130;
+const ROOT_GAP = 130;
+
+// Calculate subnet dimensions based on child count
+function subnetSize(childCount: number): { w: number; h: number } {
+  const cols = Math.min(childCount, SUBNET_COLS);
+  const rows = Math.max(1, Math.ceil(childCount / SUBNET_COLS));
+  const w = SUBNET_PAD_X * 2 + cols * RESOURCE_W + Math.max(0, cols - 1) * RESOURCE_GAP_X;
+  const h = SUBNET_PAD_Y + rows * RESOURCE_H + Math.max(0, rows - 1) * RESOURCE_GAP_Y + 20;
+  return { w: Math.max(w, 260), h: Math.max(h, 120) };
+}
 
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
@@ -196,72 +201,80 @@ export function buildGraph(tfstate: Tfstate): ParseResponse {
   // Build nodes
   const nodesMap = new Map<string, GraphNode>();
 
-  // VPC nodes
+  // VPC nodes — dynamic sizing based on content
   let vpcYOffset = 0;
   vpcs.forEach((vpc) => {
-    // Subnets inside this VPC
     const subnets = resources.filter(
       (r) => r.type === 'aws_subnet' && parentOf.get(r.id) === vpc.id
     );
-    const subnetRows = Math.ceil(subnets.length / 2) || 0;
 
-    // VPC-direct children (IGW, SG, NAT not in a subnet)
+    // Precompute subnet sizes based on their children
+    const subnetData = subnets.map((subnet) => {
+      const children = resources.filter((r) => parentOf.get(r.id) === subnet.id);
+      const size = subnetSize(children.length);
+      return { subnet, children, ...size };
+    });
+
+    // Lay out subnets in a row (side by side)
+    let subnetX = VPC_PAD_X;
+    let maxSubnetBottom = 0;
+    const subnetPositions: { x: number; y: number; w: number; h: number }[] = [];
+    for (const sd of subnetData) {
+      subnetPositions.push({ x: subnetX, y: VPC_PAD_Y, w: sd.w, h: sd.h });
+      subnetX += sd.w + SUBNET_GAP_X;
+      maxSubnetBottom = Math.max(maxSubnetBottom, VPC_PAD_Y + sd.h);
+    }
+
+    // VPC-direct children (IGW, SG, etc.)
     const vpcDirectChildren = resources.filter(
-      (r) =>
-        parentOf.get(r.id) === vpc.id &&
-        r.type !== 'aws_subnet'
+      (r) => parentOf.get(r.id) === vpc.id && r.type !== 'aws_subnet'
     );
+    const directCols = Math.min(vpcDirectChildren.length, 3);
     const directRows = Math.ceil(vpcDirectChildren.length / 3) || 0;
+    const directStartY = maxSubnetBottom + SUBNET_GAP_Y;
+    const directBottom = directRows > 0
+      ? directStartY + directRows * RESOURCE_H + (directRows - 1) * RESOURCE_GAP_Y
+      : maxSubnetBottom;
 
-    // Calculate VPC height dynamically
-    const subnetsBottom = subnetRows > 0
-      ? SUBNET_PAD_Y + (subnetRows - 1) * SUBNET_ROW_GAP + SUBNET_H
-      : SUBNET_PAD_Y;
-    const directChildrenBottom = directRows > 0
-      ? subnetsBottom + 40 + (directRows - 1) * RESOURCE_ROW_GAP + RESOURCE_H
-      : subnetsBottom;
-    const vpcH = Math.max(VPC_H, directChildrenBottom + 40);
+    // VPC dimensions
+    const contentWidth = subnetX - SUBNET_GAP_X + VPC_PAD_X;
+    const directWidth = VPC_PAD_X * 2 + directCols * RESOURCE_W + Math.max(0, directCols - 1) * RESOURCE_GAP_X;
+    const vpcW = Math.max(contentWidth, directWidth, 500);
+    const vpcH = directBottom + VPC_PAD_Y;
 
     nodesMap.set(vpc.id, {
       id: vpc.id,
       type: 'vpcNode',
       position: { x: 0, y: vpcYOffset },
       data: { resource: vpc, label: vpc.displayName },
-      style: { width: VPC_W, height: vpcH },
+      style: { width: vpcW, height: vpcH },
     });
 
-    subnets.forEach((subnet, j) => {
-      const col = j % 2;
-      const row = Math.floor(j / 2);
-      nodesMap.set(subnet.id, {
-        id: subnet.id,
+    // Place subnets and their children
+    subnetData.forEach((sd, j) => {
+      const sp = subnetPositions[j]!;
+      nodesMap.set(sd.subnet.id, {
+        id: sd.subnet.id,
         type: 'subnetNode',
-        position: {
-          x: SUBNET_PAD_X + col * SUBNET_COL_GAP,
-          y: SUBNET_PAD_Y + row * SUBNET_ROW_GAP,
-        },
-        data: { resource: subnet, label: subnet.displayName },
+        position: { x: sp.x, y: sp.y },
+        data: { resource: sd.subnet, label: sd.subnet.displayName },
         parentNode: vpc.id,
         extent: 'parent',
-        style: { width: SUBNET_W, height: SUBNET_H },
+        style: { width: sp.w, height: sp.h },
       });
 
-      // Resources inside this subnet
-      const subnetChildren = resources.filter(
-        (r) => parentOf.get(r.id) === subnet.id
-      );
-      subnetChildren.forEach((child, k) => {
-        const col2 = k % 3;
-        const row2 = Math.floor(k / 3);
+      sd.children.forEach((child, k) => {
+        const col = k % SUBNET_COLS;
+        const row = Math.floor(k / SUBNET_COLS);
         nodesMap.set(child.id, {
           id: child.id,
           type: nodeTypeFor(child.type),
           position: {
-            x: RESOURCE_PAD_X + col2 * RESOURCE_COL_GAP,
-            y: RESOURCE_PAD_Y + row2 * RESOURCE_ROW_GAP,
+            x: SUBNET_PAD_X + col * (RESOURCE_W + RESOURCE_GAP_X),
+            y: SUBNET_PAD_Y + row * (RESOURCE_H + RESOURCE_GAP_Y),
           },
           data: { resource: child, label: child.displayName },
-          parentNode: subnet.id,
+          parentNode: sd.subnet.id,
           extent: 'parent',
           style: { width: RESOURCE_W, height: RESOURCE_H },
         });
@@ -270,7 +283,6 @@ export function buildGraph(tfstate: Tfstate): ParseResponse {
 
     // Place VPC-direct children below subnets
     vpcDirectChildren.forEach((child, k) => {
-      // Skip if already placed inside a subnet
       if (nodesMap.has(child.id)) return;
       const col = k % 3;
       const row = Math.floor(k / 3);
@@ -278,8 +290,8 @@ export function buildGraph(tfstate: Tfstate): ParseResponse {
         id: child.id,
         type: nodeTypeFor(child.type),
         position: {
-          x: SUBNET_PAD_X + col * RESOURCE_COL_GAP,
-          y: subnetsBottom + 40 + row * RESOURCE_ROW_GAP,
+          x: VPC_PAD_X + col * (RESOURCE_W + RESOURCE_GAP_X),
+          y: directStartY + row * (RESOURCE_H + RESOURCE_GAP_Y),
         },
         data: { resource: child, label: child.displayName },
         parentNode: vpc.id,
@@ -291,12 +303,16 @@ export function buildGraph(tfstate: Tfstate): ParseResponse {
     vpcYOffset += vpcH + VPC_GAP;
   });
 
-  // Root-level nodes (no VPC parent — e.g. S3, Lambda)
+  // Root-level nodes (outside VPC) — positioned to the right
+  const rootX = Math.max(
+    ...Array.from(nodesMap.values()).map((n) => (n.position?.x ?? 0) + ((n.style?.width as number) ?? 0)),
+    500
+  ) + 60;
   rootResources.forEach((r, i) => {
     nodesMap.set(r.id, {
       id: r.id,
       type: nodeTypeFor(r.type),
-      position: { x: ROOT_X, y: i * ROOT_Y_GAP },
+      position: { x: rootX, y: i * ROOT_GAP },
       data: { resource: r, label: r.displayName },
       style: { width: RESOURCE_W, height: RESOURCE_H },
     });
