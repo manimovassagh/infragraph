@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useRef, useMemo, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { toPng } from 'html-to-image';
 import ReactFlow, {
   Background,
   Controls,
@@ -99,7 +100,24 @@ function nodeMatchesSearch(node: GraphNode, query: string): boolean {
   );
 }
 
-export function Canvas({ graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, onNodeSelect }: CanvasProps) {
+export interface CanvasHandle {
+  exportPng: () => Promise<void>;
+}
+
+export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas({ graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, onNodeSelect }, ref) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const exportPng = useCallback(async () => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const dataUrl = await toPng(el, { backgroundColor: '#f8fafc' });
+    const link = document.createElement('a');
+    link.download = 'architecture.png';
+    link.href = dataUrl;
+    link.click();
+  }, []);
+
+  useImperativeHandle(ref, () => ({ exportPng }));
   // Filter out hidden resource types
   const visibleNodes = useMemo(() => {
     if (!hiddenTypes || hiddenTypes.size === 0) return graphNodes;
@@ -169,23 +187,25 @@ export function Canvas({ graphNodes, graphEdges, selectedNodeId, searchQuery, hi
   ) as Edge[];
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={nodeTypes}
-      onNodeClick={(_, node) => onNodeSelect(node.id)}
-      onPaneClick={() => onNodeSelect(null)}
-      fitView
-      minZoom={0.1}
-      maxZoom={2}
-      defaultEdgeOptions={defaultEdgeOptions}
-    >
-      <Background color="#cbd5e1" gap={20} size={1} />
-      <Controls />
-      <MiniMap
-        nodeColor={minimapNodeColor}
-        maskColor="rgba(248, 250, 252, 0.7)"
-      />
-    </ReactFlow>
+    <div ref={wrapperRef} className="w-full h-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={nodeTypes}
+        onNodeClick={(_, node) => onNodeSelect(node.id)}
+        onPaneClick={() => onNodeSelect(null)}
+        fitView
+        minZoom={0.1}
+        maxZoom={2}
+        defaultEdgeOptions={defaultEdgeOptions}
+      >
+        <Background color="#cbd5e1" gap={20} size={1} />
+        <Controls />
+        <MiniMap
+          nodeColor={minimapNodeColor}
+          maskColor="rgba(248, 250, 252, 0.7)"
+        />
+      </ReactFlow>
+    </div>
   );
-}
+});

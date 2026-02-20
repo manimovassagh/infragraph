@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ParseResponse } from '@awsarchitect/shared';
 import { Upload, type UploadMode } from '@/components/Upload';
-import { Canvas } from '@/components/Canvas';
+import { Canvas, type CanvasHandle } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { ResourceSummary } from '@/components/ResourceSummary';
 import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
@@ -22,6 +22,7 @@ export default function Home() {
   const [uploadMode, setUploadMode] = useState<UploadMode>('tfstate');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
+  const canvasRef = useRef<CanvasHandle>(null);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -150,18 +151,31 @@ export default function Home() {
               }
             />
             <SearchBar ref={searchBarRef} onSearch={setSearchQuery} />
-            {/* Upload new file button */}
-            <button
-              onClick={handleQuickUpload}
-              className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-1.5 shadow-sm text-xs text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-colors"
-              title="Upload a different file"
-            >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-              </svg>
-              New file
-            </button>
+            {/* Toolbar: Export PNG + Upload new file */}
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+              <button
+                onClick={() => canvasRef.current?.exportPng()}
+                className="flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-1.5 shadow-sm text-xs text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-colors"
+                title="Export canvas as PNG"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                PNG
+              </button>
+              <button
+                onClick={handleQuickUpload}
+                className="flex items-center gap-1.5 rounded-lg bg-white/90 backdrop-blur-sm border border-slate-200 px-3 py-1.5 shadow-sm text-xs text-slate-500 hover:text-slate-700 hover:border-slate-300 transition-colors"
+                title="Upload a different file"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                </svg>
+                New file
+              </button>
+            </div>
             <Canvas
+              ref={canvasRef}
               graphNodes={state.data.nodes}
               graphEdges={state.data.edges}
               selectedNodeId={state.selectedNodeId}
