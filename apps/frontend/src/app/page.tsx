@@ -5,6 +5,7 @@ import type { ParseResponse } from '@awsarchitect/shared';
 import { Upload } from '@/components/Upload';
 import { Canvas } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
+import { ResourceSummary } from '@/components/ResourceSummary';
 import { parseFile } from '@/lib/api';
 
 type AppState =
@@ -55,10 +56,12 @@ export default function Home() {
 
     return (
       <div className="flex h-screen">
-        <div className="flex-1">
+        <div className="flex-1 relative">
+          <ResourceSummary resources={state.data.resources} />
           <Canvas
             graphNodes={state.data.nodes}
             graphEdges={state.data.edges}
+            selectedNodeId={state.selectedNodeId}
             onNodeSelect={(id) =>
               setState((prev) =>
                 prev.view === 'canvas' ? { ...prev, selectedNodeId: id } : prev
