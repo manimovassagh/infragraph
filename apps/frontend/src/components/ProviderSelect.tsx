@@ -28,7 +28,7 @@ const providers: ProviderCard[] = [
     name: 'Google Cloud Platform',
     description: 'VPCs, Compute, Cloud SQL, GCS, Cloud Functions',
     color: '#4285F4',
-    enabled: false,
+    enabled: true,
   },
 ];
 
