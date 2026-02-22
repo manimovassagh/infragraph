@@ -1,54 +1,32 @@
 # ADR 001: Multi-Cloud Architecture
 
 ## Status
-
-Accepted
+Accepted (v1.3.0)
 
 ## Context
-
-InfraGraph started as an AWS-only Terraform state visualizer. Users requested support for Azure and GCP. We needed an architecture that:
-
-- Supports multiple cloud providers without duplicating core logic
-- Allows adding new providers with minimal changes to existing code
-- Keeps provider-specific rendering separate for maintainability
+InfraGraph started as an AWS-only Terraform visualizer. Users requested support for Azure and GCP infrastructure. We needed an architecture that could support multiple cloud providers without duplicating the parsing engine.
 
 ## Decision
+We adopted a **provider config pattern** where each cloud provider supplies a `ProviderConfig` (backend) and `ProviderFrontendConfig` (frontend) object. The core parsing and graph-building logic is provider-agnostic.
 
-We adopted a **provider-config-driven architecture** with three layers:
+### Backend Architecture
+- `ProviderConfig` defines: supported resource types, edge attributes, container types (for nesting), node type mappings, and region extraction
+- The parser accepts any `ProviderConfig` and produces a generic graph of nodes and edges
+- Auto-detection reads resource type prefixes (`aws_`, `azurerm_`, `google_`) to select the correct provider
 
-### 1. Backend: `ProviderConfig`
+### Frontend Architecture
+- `ProviderFrontendConfig` defines: node type components, minimap colors, edge colors, type metadata, and interesting attributes
+- Each provider registers its own React components for the same node type keys (`vpcNode`, `ec2Node`, etc.)
+- Provider configs are loaded from a registry keyed by `CloudProvider` ID
 
-Each cloud provider defines a config object (`aws.ts`, `azure.ts`, `gcp.ts`) that maps Terraform resource types to generic capability keys:
+### Shared Registry Keys
+Node type keys like `ec2Node`, `s3Node`, `lbNode` are **capability names**, not brand names. The backend maps `azurerm_linux_virtual_machine` to `ec2Node` (meaning "compute instance"), and each provider's frontend config maps `ec2Node` to its own branded component (e.g., `AzureVmNode`).
 
-```
-azurerm_virtual_network  -> vpcNode
-google_compute_instance  -> ec2Node
-aws_s3_bucket            -> s3Node
-```
-
-The parser is provider-agnostic — it reads the config and builds the React Flow graph using these generic keys.
-
-### 2. Shared: `CloudProvider` type
-
-The `@infragraph/shared` package exports `CloudProvider = 'aws' | 'azure' | 'gcp'` and all shared TypeScript interfaces.
-
-### 3. Frontend: `ProviderFrontendConfig`
-
-Each provider registers its own `ProviderFrontendConfig` with:
-
-- `nodeTypes` — maps generic keys to provider-specific React components
-- `typeMeta` — labels, colors, and icons per Terraform resource type
-- `interestingAttrs` — which attributes to display per resource type
-- `minimapColors` / `edgeColors` — visual theming
-- `typeConfig` — resource summary bar configuration
-
-### Auto-Detection
-
-The backend auto-detects the cloud provider from resource type prefixes (`aws_`, `azurerm_`, `google_`). The frontend also accepts an explicit `?provider=` query parameter.
+### Container Nesting
+VPC/VNet/Network and Subnet nesting is config-driven via `containerTypes` arrays. The graph builder uses these to create React Flow parent-child relationships automatically.
 
 ## Consequences
-
-- Adding a new provider requires: 1 backend config, 1 frontend config, node components, and icons
-- No changes to the parser, canvas, or shared infrastructure
-- Each provider's visual identity is fully independent (colors, icons, labels)
-- The generic key system (`ec2Node`, `s3Node`) means the backend and frontend share a contract without sharing provider-specific names
+- Adding a new provider requires only config files and React components — no parser changes
+- Provider-specific display logic stays isolated in per-provider directories
+- The shared key pattern means the backend API response is provider-agnostic
+- Trade-off: resource types that don't map cleanly to existing keys fall back to `genericNode`

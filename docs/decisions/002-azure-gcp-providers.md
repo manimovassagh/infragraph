@@ -1,63 +1,40 @@
 # ADR 002: Azure & GCP Provider Implementation
 
 ## Status
-
-Accepted
+Accepted (v1.4.0)
 
 ## Context
-
-With the multi-cloud architecture in place (ADR 001), we needed to implement full Azure and GCP support with visual parity to AWS.
+With the multi-cloud architecture in place (ADR 001), we needed to implement full Azure and GCP support including icons, node components, test fixtures, and frontend configs.
 
 ## Decisions
 
-### Shared Registry Keys
-
-Backend node type keys are capability names, not brand names:
-
-| Key | AWS | Azure | GCP |
-|-----|-----|-------|-----|
-| `vpcNode` | VPC | VNet | VPC Network |
-| `subnetNode` | Subnet | Subnet | Subnetwork |
-| `ec2Node` | EC2 Instance | Virtual Machine | Compute Instance |
-| `securityGroupNode` | Security Group | NSG | Firewall Rule |
-| `s3Node` | S3 Bucket | Storage Account | Cloud Storage |
-| `rdsNode` | RDS | SQL Database | Cloud SQL |
-| `lambdaNode` | Lambda | Function App | Cloud Function |
-| `lbNode` | Load Balancer | Load Balancer | Forwarding Rule |
-
 ### Separate Node Components Per Provider
-
-Each provider has its own directory of React components (`nodes/aws/`, `nodes/azure/`, `nodes/gcp/`). This allows:
-
-- Provider-specific icons and color schemes
-- Different attribute display logic (e.g., Azure VM reads `vm_size`, GCP Instance reads `machine_type`)
-- Independent visual evolution without cross-provider regressions
+Each provider has its own directory of React components (`nodes/azure/`, `nodes/gcp/`) rather than sharing generic components. This ensures:
+- Provider-specific attributes are displayed correctly (e.g., Azure `vm_size` vs GCP `machine_type`)
+- Brand colors and labels match each cloud provider's identity
+- Components can evolve independently without cross-provider regressions
 
 ### Color Palettes
+Colors follow each provider's brand guidelines:
+- **AWS**: Orange (#ED7100), purple (#8C4FFF), green (#3F8624), blue (#3B48CC)
+- **Azure**: Blue (#0078D4), green (#107C10), red (#D13438), teal (#008272), purple (#773ADC)
+- **GCP**: Green (#34A853), yellow (#FBBC04), red (#EA4335), blue (#4285F4), purple (#AB47BC)
 
-**Azure** — follows Microsoft brand guidelines:
-- VNet: `#107C10` (green), VM/PIP: `#0078D4` (blue), NSG: `#D13438` (red)
-- Storage: `#008272` (teal), SQL: `#0F4C75` (dark blue), LB/NAT: `#773ADC` (purple)
-
-**GCP** — follows Google Cloud brand colors:
-- VPC: `#34A853` (green), Instance/Functions: `#FBBC04` (yellow), Firewall: `#EA4335` (red)
-- Subnet: `#4285F4` (blue), SQL: `#0F9D58` (green), LB: `#AB47BC` (purple)
-
-### Container Nesting
-
-VPC and Subnet nodes are container types for all providers. The canvas renders them as dashed-border regions that visually contain child resources. This is config-driven via `containerTypes` in the backend config — no special casing per provider.
+### Attribute Mappings
+Each provider displays the most useful resource-specific attributes:
+- **Azure VNet**: `address_space` | **GCP VPC**: `auto_create_subnetworks`
+- **Azure VM**: `vm_size` | **GCP Instance**: `machine_type`
+- **Azure PIP**: `ip_address` | **GCP Address**: `address`
+- **Azure SQL**: `version` | **GCP SQL**: `database_version`
 
 ### Test Fixtures
+Each provider has a sample `.tfstate` fixture with ~11-12 resources covering the main resource categories: networking (VPC/VNet, subnets), compute, storage, database, serverless, load balancing, and container orchestration.
 
-Each provider has a sample `.tfstate` fixture with representative resources:
-- AWS: `sample.tfstate` (~20 resources)
-- Azure: `azure-sample.tfstate` (12 resources)
-- GCP: `gcp-sample.tfstate` (11 resources)
-
-These fixtures serve as both unit test data and "Try with sample infrastructure" demo data in the UI.
+### No Backend Changes Required
+The existing backend provider configs (`azure.ts`, `gcp.ts`) already had complete `nodeTypeMapping`, `containerTypes`, and `edgeAttributes`. Only frontend work was needed to bring Azure and GCP to parity with AWS.
 
 ## Consequences
-
-- All three providers have full visual parity: icons, node components, attribute display, container nesting, dependency edges
-- E2E tests cover upload and rendering for each provider independently
-- Adding more resource types to an existing provider only requires updating the backend config and (optionally) adding a new node component
+- All three providers now have full visual support with branded icons and components
+- Test fixtures enable reliable E2E testing for each provider's upload flow
+- The per-provider component pattern means ~11 files per provider, but each is small and focused
+- Future providers (e.g., Oracle Cloud, DigitalOcean) can follow the same pattern
