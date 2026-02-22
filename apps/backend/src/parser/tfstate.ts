@@ -2,7 +2,6 @@ import type {
   Tfstate,
   TfstateResource,
   AwsResource,
-  AwsResourceType,
 } from '@awsarchitect/shared';
 
 // ─── Known AWS resource types we render ──────────────────────────────────────
@@ -95,9 +94,7 @@ export function extractResources(tfstate: Tfstate): {
 
       resources.push({
         id,
-        type: (SUPPORTED_TYPES.has(tfResource.type)
-          ? tfResource.type
-          : 'unknown') as AwsResourceType,
+        type: tfResource.type,
         name: tfResource.name,
         displayName,
         attributes: attrs,

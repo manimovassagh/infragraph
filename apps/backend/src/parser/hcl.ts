@@ -1,17 +1,5 @@
 import { parse } from '@cdktf/hcl2json';
-import type { AwsResource, AwsResourceType } from '@awsarchitect/shared';
-
-// Same set as tfstate.ts — keep in sync
-const SUPPORTED_TYPES = new Set<string>([
-  'aws_vpc', 'aws_subnet', 'aws_internet_gateway', 'aws_nat_gateway',
-  'aws_route_table', 'aws_route_table_association', 'aws_security_group',
-  'aws_instance', 'aws_db_instance', 'aws_lb', 'aws_alb',
-  'aws_lb_target_group', 'aws_lb_listener', 'aws_eip', 'aws_s3_bucket',
-  'aws_lambda_function', 'aws_ecs_cluster', 'aws_ecs_service',
-  'aws_ecs_task_definition', 'aws_eks_cluster', 'aws_elasticache_cluster',
-  'aws_sqs_queue', 'aws_sns_topic', 'aws_cloudfront_distribution',
-  'aws_api_gateway_rest_api',
-]);
+import type { AwsResource } from '@awsarchitect/shared';
 
 // Attribute keys that carry references to other resources
 const REF_ATTRS = [
@@ -77,9 +65,7 @@ export async function extractResourcesFromHcl(
 
       resources.push({
         id: tfId,
-        type: (SUPPORTED_TYPES.has(resourceType)
-          ? resourceType
-          : 'unknown') as AwsResourceType,
+        type: resourceType,
         name: resourceName,
         displayName,
         attributes: attrs,
