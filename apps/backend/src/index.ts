@@ -18,6 +18,13 @@ app.get('/health', (_req, res) => {
 
 app.use('/api', parseRouter);
 
+// Global error handler — catches unhandled errors from middleware (e.g. multer)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: err.message });
+});
+
 app.listen(PORT, () => {
   console.log(`InfraGraph backend running on http://localhost:${PORT}`);
   console.log(`Swagger docs at http://localhost:${PORT}/docs`);
