@@ -110,15 +110,31 @@ export function buildGraphFromResources(
   const outerContainer = provider.containerTypes[0]; // e.g. VPC / VNet
   const innerContainer = provider.containerTypes[1]; // e.g. Subnet
 
-  // Index containers for quick lookup
+  // Index containers for quick lookup (by cloud ID and by name for Azure-style refs)
   const outerByCloudId = new Map<string, string>(); // cloud id → tf id
   const innerByCloudId = new Map<string, string>(); // cloud id → tf id
+  const outerByName = new Map<string, string>();     // name → tf id (fallback)
+  const innerByName = new Map<string, string>();     // name → tf id (fallback)
 
   for (const r of resources) {
     const cloudId = r.attributes['id'];
-    if (typeof cloudId !== 'string') continue;
-    if (outerContainer && r.type === outerContainer.type) outerByCloudId.set(cloudId, r.id);
-    if (innerContainer && r.type === innerContainer.type) innerByCloudId.set(cloudId, r.id);
+    const name = r.attributes['name'];
+    if (outerContainer && r.type === outerContainer.type) {
+      if (typeof cloudId === 'string' && cloudId) outerByCloudId.set(cloudId, r.id);
+      if (typeof name === 'string' && name) outerByName.set(name, r.id);
+    }
+    if (innerContainer && r.type === innerContainer.type) {
+      if (typeof cloudId === 'string' && cloudId) innerByCloudId.set(cloudId, r.id);
+      if (typeof name === 'string' && name) innerByName.set(name, r.id);
+    }
+  }
+
+  // Resolve a container reference: try cloud ID first, then name fallback
+  function resolveOuter(ref: string): string | undefined {
+    return outerByCloudId.get(ref) ?? outerByName.get(ref);
+  }
+  function resolveInner(ref: string): string | undefined {
+    return innerByCloudId.get(ref) ?? innerByName.get(ref);
   }
 
   for (const r of resources) {
@@ -127,18 +143,18 @@ export function buildGraphFromResources(
     // Prefer inner container placement (e.g. subnet_id → place inside subnet)
     if (innerContainer) {
       const innerRef = r.attributes[innerContainer.parentAttr];
-      if (typeof innerRef === 'string' && innerByCloudId.has(innerRef)) {
-        parentOf.set(r.id, innerByCloudId.get(innerRef)!);
-        continue;
+      if (typeof innerRef === 'string') {
+        const resolved = resolveInner(innerRef);
+        if (resolved) { parentOf.set(r.id, resolved); continue; }
       }
 
       // subnet_ids[] — use first
       const innerRefs = r.attributes[innerContainer.parentAttr + 's'];
       if (Array.isArray(innerRefs) && innerRefs.length > 0) {
         const first = innerRefs[0];
-        if (typeof first === 'string' && innerByCloudId.has(first)) {
-          parentOf.set(r.id, innerByCloudId.get(first)!);
-          continue;
+        if (typeof first === 'string') {
+          const resolved = resolveInner(first);
+          if (resolved) { parentOf.set(r.id, resolved); continue; }
         }
       }
     }
@@ -146,17 +162,18 @@ export function buildGraphFromResources(
     // Place inner container inside outer container
     if (innerContainer && outerContainer && r.type === innerContainer.type) {
       const outerRef = r.attributes[outerContainer.parentAttr];
-      if (typeof outerRef === 'string' && outerByCloudId.has(outerRef)) {
-        parentOf.set(r.id, outerByCloudId.get(outerRef)!);
-        continue;
+      if (typeof outerRef === 'string') {
+        const resolved = resolveOuter(outerRef);
+        if (resolved) { parentOf.set(r.id, resolved); continue; }
       }
     }
 
     // Place resources directly attached to outer container
     if (outerContainer) {
       const outerRef = r.attributes[outerContainer.parentAttr];
-      if (typeof outerRef === 'string' && outerByCloudId.has(outerRef)) {
-        parentOf.set(r.id, outerByCloudId.get(outerRef)!);
+      if (typeof outerRef === 'string') {
+        const resolved = resolveOuter(outerRef);
+        if (resolved) parentOf.set(r.id, resolved);
       }
     }
   }
