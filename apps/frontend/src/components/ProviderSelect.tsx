@@ -1,5 +1,6 @@
 import type { CloudProvider } from '@infragraph/shared';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Upload } from './Upload';
 
 const GITHUB_PATH =
@@ -34,13 +35,13 @@ export function ProviderSelect({ onUpload, onTrySample }: ProviderSelectProps) {
       <nav className="flex items-center justify-between px-8 py-5 relative z-20 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-1">
           {['Docs', 'API', 'AI'].map((label) => (
-            <a
+            <Link
               key={label}
-              href={`/${label.toLowerCase()}`}
+              to={`/${label.toLowerCase()}`}
               className="px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
             >
               {label}
-            </a>
+            </Link>
           ))}
         </div>
         <div className="flex items-center gap-1">
