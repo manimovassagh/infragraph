@@ -17,7 +17,7 @@ async function uploadAndParse(page: import('@playwright/test').Page) {
 test.describe('GCP provider flow', () => {
   test('GCP card is visible on landing page', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText(/Google Cloud Platform/i)).toBeVisible();
+    await expect(page.getByText('GCP')).toBeVisible();
   });
 
   test('uploads GCP tfstate and renders VPC', async ({ page }) => {

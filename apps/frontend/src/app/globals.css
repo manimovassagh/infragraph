@@ -104,8 +104,8 @@
   height: 70%;
   background: radial-gradient(
     ellipse 60% 50% at center,
-    rgba(124, 58, 237, 0.15),
-    rgba(59, 130, 246, 0.08),
+    rgba(124, 58, 237, 0.25),
+    rgba(59, 130, 246, 0.12),
     transparent 70%
   );
   pointer-events: none;
@@ -127,8 +127,8 @@
   height: 70%;
   background: radial-gradient(
     ellipse 60% 50% at center,
-    rgba(124, 58, 237, 0.06),
-    rgba(59, 130, 246, 0.03),
+    rgba(124, 58, 237, 0.1),
+    rgba(59, 130, 246, 0.06),
     transparent 70%
   );
   pointer-events: none;
@@ -176,8 +176,29 @@
     0 0 0 1px var(--glow-color, rgba(99, 102, 241, 0.3));
 }
 
+/* Upload zone glow */
+.upload-glow {
+  box-shadow: 0 0 20px -4px rgba(124, 58, 237, 0.15),
+              0 0 0 1px rgba(124, 58, 237, 0.1);
+}
+.dark .upload-glow {
+  box-shadow: 0 0 24px -4px rgba(124, 58, 237, 0.25),
+              0 0 0 1px rgba(124, 58, 237, 0.15);
+}
+
+/* Light mode gradient text with better contrast */
+.text-gradient-light {
+  background: linear-gradient(135deg, #3b82f6, #7c3aed, #db2777, #3b82f6);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient 4s ease infinite;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .text-gradient { animation: none; }
+  .text-gradient-light { animation: none; }
   .landing-card:hover { transform: none; }
 }

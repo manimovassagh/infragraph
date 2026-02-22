@@ -153,8 +153,8 @@ export function Upload({ onSubmit }: UploadProps) {
       onDrop={onDrop}
       onClick={() => state !== 'ready' && fileInputRef.current?.click()}
       className={`
-        flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed
-        p-7 transition-colors bg-white/80 dark:bg-white/5 backdrop-blur-sm cursor-pointer
+        upload-glow flex flex-col items-center justify-center gap-3 rounded-xl border-[3px] border-dashed
+        p-8 transition-all bg-white dark:bg-white/10 backdrop-blur-sm cursor-pointer
         ${borderColor}
       `}
     >
@@ -169,15 +169,15 @@ export function Upload({ onSubmit }: UploadProps) {
 
       {state === 'idle' || state === 'dragging' ? (
         <>
-          <svg className="h-8 w-8 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <svg className="h-10 w-10 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
           </svg>
-          <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">
+          <p className="text-slate-700 dark:text-slate-300 text-base font-medium">
             {state === 'dragging'
               ? 'Drop your file(s) here'
               : 'Drop .tfstate or .tf files here'}
           </p>
-          <p className="text-slate-400 dark:text-slate-500 text-xs">
+          <p className="text-slate-400 dark:text-slate-500 text-sm">
             Click to browse — or drag files and folders
           </p>
         </>
