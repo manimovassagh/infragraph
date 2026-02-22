@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AwsResource, GraphEdge } from '@awsarchitect/shared';
+import type { CloudResource, GraphEdge } from '@awsarchitect/shared';
 import {
   Ec2Icon, RdsIcon, S3Icon, LambdaIcon, LbIcon, VpcIcon,
   SubnetIcon, IgwIcon, NatIcon, SecurityGroupIcon, EipIcon,
@@ -53,9 +53,9 @@ function formatAttrValue(value: unknown): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface NodeDetailPanelProps {
-  resource: AwsResource;
+  resource: CloudResource;
   edges: GraphEdge[];
-  resources: AwsResource[];
+  resources: CloudResource[];
   onClose: () => void;
   onSelectResource?: (nodeId: string) => void;
 }

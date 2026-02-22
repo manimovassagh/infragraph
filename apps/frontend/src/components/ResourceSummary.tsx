@@ -1,4 +1,4 @@
-import type { AwsResource } from '@awsarchitect/shared';
+import type { CloudResource } from '@awsarchitect/shared';
 import {
   Ec2Icon, RdsIcon, S3Icon, LambdaIcon, LbIcon, VpcIcon,
   SubnetIcon, IgwIcon, NatIcon, SecurityGroupIcon, EipIcon,
@@ -20,7 +20,7 @@ const TYPE_CONFIG: Record<string, { label: string; Icon: React.FC<{ className?: 
 };
 
 interface ResourceSummaryProps {
-  resources: AwsResource[];
+  resources: CloudResource[];
   hiddenTypes?: Set<string>;
   onToggleType?: (type: string) => void;
 }

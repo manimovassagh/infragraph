@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ParseResponse } from '@awsarchitect/shared';
+import type { CloudProvider, ParseResponse } from '@awsarchitect/shared';
+import { ProviderSelect } from '@/components/ProviderSelect';
 import { Upload, type UploadMode } from '@/components/Upload';
 import { Canvas, type CanvasHandle } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
@@ -8,13 +9,14 @@ import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
 import { parseFile, parseHcl } from '@/lib/api';
 
 type AppState =
-  | { view: 'upload' }
-  | { view: 'loading' }
-  | { view: 'error'; message: string; fileName?: string }
-  | { view: 'canvas'; data: ParseResponse; selectedNodeId: string | null; fileName: string };
+  | { view: 'provider-select' }
+  | { view: 'upload'; provider: CloudProvider }
+  | { view: 'loading'; provider: CloudProvider }
+  | { view: 'error'; provider: CloudProvider; message: string; fileName?: string }
+  | { view: 'canvas'; provider: CloudProvider; data: ParseResponse; selectedNodeId: string | null; fileName: string };
 
 export default function App() {
-  const [state, setState] = useState<AppState>({ view: 'upload' });
+  const [state, setState] = useState<AppState>({ view: 'provider-select' });
   const [searchQuery, setSearchQuery] = useState('');
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
   const [uploadMode, setUploadMode] = useState<UploadMode>('tfstate');
@@ -53,37 +55,45 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  function handleProviderSelect(provider: CloudProvider) {
+    setState({ view: 'upload', provider });
+  }
+
   async function handleFileAccepted(file: File) {
-    setState({ view: 'loading' });
+    if (state.view !== 'upload' && state.view !== 'canvas' && state.view !== 'error') return;
+    const provider = state.provider;
+    setState({ view: 'loading', provider });
     try {
-      const data = await parseFile(file);
+      const data = await parseFile(file, provider);
       if (data.resources.length === 0) {
-        setState({ view: 'error', message: 'No AWS resources found in this file. Make sure it contains managed Terraform resources.', fileName: file.name });
+        setState({ view: 'error', provider, message: 'No resources found in this file. Make sure it contains managed Terraform resources.', fileName: file.name });
         return;
       }
-      setState({ view: 'canvas', data, selectedNodeId: null, fileName: file.name });
+      setState({ view: 'canvas', provider, data, selectedNodeId: null, fileName: file.name });
     } catch (err) {
-      setState({ view: 'error', message: err instanceof Error ? err.message : 'Unknown error', fileName: file.name });
+      setState({ view: 'error', provider, message: err instanceof Error ? err.message : 'Unknown error', fileName: file.name });
     }
   }
 
   async function handleFilesAccepted(files: File[]) {
-    setState({ view: 'loading' });
+    if (state.view !== 'upload' && state.view !== 'canvas' && state.view !== 'error') return;
+    const provider = state.provider;
+    setState({ view: 'loading', provider });
     try {
-      const data = await parseHcl(files);
+      const data = await parseHcl(files, provider);
       if (data.resources.length === 0) {
-        setState({ view: 'error', message: 'No AWS resources found in the .tf files.', fileName: `${files.length} file(s)` });
+        setState({ view: 'error', provider, message: 'No resources found in the .tf files.', fileName: `${files.length} file(s)` });
         return;
       }
       const label = files.length === 1 ? files[0]!.name : `${files.length} .tf files`;
-      setState({ view: 'canvas', data, selectedNodeId: null, fileName: label });
+      setState({ view: 'canvas', provider, data, selectedNodeId: null, fileName: label });
     } catch (err) {
-      setState({ view: 'error', message: err instanceof Error ? err.message : 'Unknown error', fileName: `${files.length} file(s)` });
+      setState({ view: 'error', provider, message: err instanceof Error ? err.message : 'Unknown error', fileName: `${files.length} file(s)` });
     }
   }
 
   function handleNewUpload() {
-    setState({ view: 'upload' });
+    setState({ view: 'provider-select' });
   }
 
   // Reupload via hidden input (used from canvas header)
@@ -95,6 +105,11 @@ export default function App() {
     const file = e.target.files?.[0];
     if (file) handleFileAccepted(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  // Provider select view
+  if (state.view === 'provider-select') {
+    return <ProviderSelect onSelect={handleProviderSelect} />;
   }
 
   if (state.view === 'loading') {
@@ -196,6 +211,16 @@ export default function App() {
                 </svg>
                 New file
               </button>
+              <button
+                onClick={handleNewUpload}
+                className="flex items-center gap-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 transition-colors"
+                title="Return to provider selection"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+                Home
+              </button>
             </div>
             <Canvas
               ref={canvasRef}
@@ -244,24 +269,26 @@ export default function App() {
   }
 
   async function handleTrySample() {
-    setState({ view: 'loading' });
+    if (state.view !== 'upload') return;
+    const provider = state.provider;
+    setState({ view: 'loading', provider });
     try {
       const res = await fetch('/sample.tfstate');
       const text = await res.text();
       const blob = new Blob([text], { type: 'application/json' });
       const file = new File([blob], 'sample.tfstate');
-      const data = await parseFile(file);
-      setState({ view: 'canvas', data, selectedNodeId: null, fileName: 'sample.tfstate' });
+      const data = await parseFile(file, provider);
+      setState({ view: 'canvas', provider, data, selectedNodeId: null, fileName: 'sample.tfstate' });
     } catch (err) {
-      setState({ view: 'error', message: err instanceof Error ? err.message : 'Failed to load sample' });
+      setState({ view: 'error', provider, message: err instanceof Error ? err.message : 'Failed to load sample' });
     }
   }
 
   // Default: upload view
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">AWSArchitect</h1>
-      <p className="text-slate-500 text-sm">Visualize your Terraform infrastructure</p>
+      <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">InfraGraph</h1>
+      <p className="text-slate-500 text-sm">Upload your {state.provider.toUpperCase()} Terraform files</p>
 
       {/* Mode toggle */}
       <div className="flex rounded-lg border border-slate-200 overflow-hidden">
@@ -295,14 +322,22 @@ export default function App() {
         />
       </div>
 
-      {uploadMode === 'tfstate' && (
+      <div className="flex items-center gap-4">
+        {uploadMode === 'tfstate' && (
+          <button
+            onClick={handleTrySample}
+            className="text-xs text-slate-400 hover:text-[#ED7100] transition-colors underline underline-offset-2"
+          >
+            Try with sample infrastructure
+          </button>
+        )}
         <button
-          onClick={handleTrySample}
-          className="text-xs text-slate-400 hover:text-[#ED7100] transition-colors underline underline-offset-2"
+          onClick={handleNewUpload}
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors underline underline-offset-2"
         >
-          Try with sample infrastructure
+          Change provider
         </button>
-      )}
+      </div>
     </main>
   );
 }

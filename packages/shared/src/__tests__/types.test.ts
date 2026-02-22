@@ -21,6 +21,7 @@ describe('shared types', () => {
       displayName: 'main-vpc',
       attributes: { id: 'vpc-123', cidr_block: '10.0.0.0/16' },
       dependencies: [],
+      provider: 'aws',
       tags: { Name: 'main-vpc' },
     };
     expect(resource.id).toBe('aws_vpc.main');
@@ -40,6 +41,7 @@ describe('shared types', () => {
           displayName: 'main-vpc',
           attributes: {},
           dependencies: [],
+          provider: 'aws',
           tags: {},
         },
         label: 'main-vpc',
@@ -65,6 +67,7 @@ describe('shared types', () => {
       nodes: [],
       edges: [],
       resources: [],
+      provider: 'aws',
       warnings: [],
     };
     expect(resp.nodes).toEqual([]);
