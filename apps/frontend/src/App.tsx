@@ -3,7 +3,7 @@ import type { CloudProvider, ParseResponse } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { getProviderFrontendConfig } from '@/providers';
 import { ProviderSelect } from '@/components/ProviderSelect';
-import { Upload, type UploadMode } from '@/components/Upload';
+import { ParsingProgress } from '@/components/ParsingProgress';
 import { Canvas, type CanvasHandle } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { ResourceSummary } from '@/components/ResourceSummary';
@@ -11,17 +11,15 @@ import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
 import { parseFile, parseHcl } from '@/lib/api';
 
 type AppState =
-  | { view: 'provider-select' }
-  | { view: 'upload'; provider: CloudProvider }
-  | { view: 'loading'; provider: CloudProvider }
-  | { view: 'error'; provider: CloudProvider; message: string; fileName?: string }
+  | { view: 'landing' }
+  | { view: 'loading'; fileName: string }
+  | { view: 'error'; message: string; fileName?: string }
   | { view: 'canvas'; provider: CloudProvider; data: ParseResponse; selectedNodeId: string | null; fileName: string };
 
 export default function App() {
-  const [state, setState] = useState<AppState>({ view: 'provider-select' });
+  const [state, setState] = useState<AppState>({ view: 'landing' });
   const [searchQuery, setSearchQuery] = useState('');
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-  const [uploadMode, setUploadMode] = useState<UploadMode>('tfstate');
   const [darkMode, setDarkMode] = useState(
     () => document.documentElement.classList.contains('dark')
   );
@@ -56,53 +54,72 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  async function handleProviderSelect(provider: CloudProvider) {
-    const config = await getProviderFrontendConfig(provider);
-    setProviderConfig(config);
-    setState({ view: 'upload', provider });
-  }
-
-  async function handleFileAccepted(file: File) {
-    if (state.view !== 'upload' && state.view !== 'canvas' && state.view !== 'error') return;
-    const provider = state.provider;
-    setState({ view: 'loading', provider });
+  async function handleSmartUpload(files: File[], mode: 'tfstate' | 'hcl') {
+    const fileName = files.length === 1
+      ? files[0]!.name
+      : `${files.length} .tf files`;
+    setState({ view: 'loading', fileName });
     try {
-      const data = await parseFile(file, provider);
+      let data: ParseResponse;
+      if (mode === 'tfstate') {
+        data = await parseFile(files[0]!);
+      } else {
+        data = await parseHcl(files);
+      }
       if (data.resources.length === 0) {
-        setState({ view: 'error', provider, message: 'No resources found in this file. Make sure it contains managed Terraform resources.', fileName: file.name });
+        setState({
+          view: 'error',
+          message: 'No resources found. Make sure the file contains managed Terraform resources.',
+          fileName,
+        });
         return;
       }
-      // Load provider config based on what backend detected
       const config = await getProviderFrontendConfig(data.provider);
       setProviderConfig(config);
-      setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: file.name });
+      setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName });
     } catch (err) {
-      setState({ view: 'error', provider, message: err instanceof Error ? err.message : 'Unknown error', fileName: file.name });
+      setState({
+        view: 'error',
+        message: err instanceof Error ? err.message : 'Unknown error',
+        fileName,
+      });
     }
   }
 
-  async function handleFilesAccepted(files: File[]) {
-    if (state.view !== 'upload' && state.view !== 'canvas' && state.view !== 'error') return;
-    const provider = state.provider;
-    setState({ view: 'loading', provider });
+  async function handleTrySample(provider: CloudProvider) {
+    const sampleMap: Record<CloudProvider, string> = {
+      aws: '/sample.tfstate',
+      azure: '/azure-sample.tfstate',
+      gcp: '/gcp-sample.tfstate',
+    };
+    const sampleUrl = sampleMap[provider];
+    const sampleName = sampleUrl.slice(1); // remove leading /
+    setState({ view: 'loading', fileName: sampleName });
     try {
-      const data = await parseHcl(files, provider);
+      const res = await fetch(sampleUrl);
+      const text = await res.text();
+      const blob = new Blob([text], { type: 'application/json' });
+      const file = new File([blob], sampleName);
+      const data = await parseFile(file);
       if (data.resources.length === 0) {
-        setState({ view: 'error', provider, message: 'No resources found in the .tf files.', fileName: `${files.length} file(s)` });
+        setState({ view: 'error', message: 'No resources found in sample file.', fileName: sampleName });
         return;
       }
       const config = await getProviderFrontendConfig(data.provider);
       setProviderConfig(config);
-      const label = files.length === 1 ? files[0]!.name : `${files.length} .tf files`;
-      setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: label });
+      setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: sampleName });
     } catch (err) {
-      setState({ view: 'error', provider, message: err instanceof Error ? err.message : 'Unknown error', fileName: `${files.length} file(s)` });
+      setState({
+        view: 'error',
+        message: err instanceof Error ? err.message : 'Failed to load sample',
+        fileName: sampleName,
+      });
     }
   }
 
   function handleNewUpload() {
     setProviderConfig(null);
-    setState({ view: 'provider-select' });
+    setState({ view: 'landing' });
   }
 
   function handleQuickUpload() {
@@ -110,25 +127,36 @@ export default function App() {
   }
 
   function onQuickFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFileAccepted(file);
+    const fileList = Array.from(e.target.files ?? []);
+    if (fileList.length === 0) return;
+
+    // Auto-detect mode from extensions
+    const hasTf = fileList.some((f) => f.name.endsWith('.tf'));
+    const hasTfstate = fileList.some((f) =>
+      f.name.endsWith('.tfstate') || f.name.endsWith('.json')
+    );
+
+    if (hasTf && hasTfstate) return; // mixed — ignore
+    if (hasTf) {
+      handleSmartUpload(fileList, 'hcl');
+    } else if (hasTfstate && fileList[0]) {
+      handleSmartUpload([fileList[0]], 'tfstate');
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
-  // Provider select view
-  if (state.view === 'provider-select') {
-    return <ProviderSelect onSelect={handleProviderSelect} />;
+  // Landing view
+  if (state.view === 'landing') {
+    return (
+      <ProviderSelect
+        onUpload={handleSmartUpload}
+        onTrySample={handleTrySample}
+      />
+    );
   }
 
   if (state.view === 'loading') {
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 border-4 border-slate-200 border-t-[#ED7100] rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Parsing infrastructure...</p>
-        </div>
-      </main>
-    );
+    return <ParsingProgress fileName={state.fileName} />;
   }
 
   if (state.view === 'error') {
@@ -161,7 +189,8 @@ export default function App() {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".tfstate,.json"
+          accept=".tfstate,.json,.tf"
+          multiple
           onChange={onQuickFileChange}
           className="hidden"
         />
@@ -222,7 +251,7 @@ export default function App() {
               <button
                 onClick={handleNewUpload}
                 className="flex items-center gap-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 transition-colors"
-                title="Return to provider selection"
+                title="Return to home page"
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -278,78 +307,5 @@ export default function App() {
     );
   }
 
-  async function handleTrySample() {
-    if (state.view !== 'upload') return;
-    const provider = state.provider;
-    setState({ view: 'loading', provider });
-    try {
-      const res = await fetch('/sample.tfstate');
-      const text = await res.text();
-      const blob = new Blob([text], { type: 'application/json' });
-      const file = new File([blob], 'sample.tfstate');
-      const data = await parseFile(file, provider);
-      const config = await getProviderFrontendConfig(data.provider);
-      setProviderConfig(config);
-      setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: 'sample.tfstate' });
-    } catch (err) {
-      setState({ view: 'error', provider, message: err instanceof Error ? err.message : 'Failed to load sample' });
-    }
-  }
-
-  // Default: upload view
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">InfraGraph</h1>
-      <p className="text-slate-500 text-sm">Upload your {state.view === 'upload' ? state.provider.toUpperCase() : ''} Terraform files</p>
-
-      {/* Mode toggle */}
-      <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-        <button
-          onClick={() => setUploadMode('tfstate')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            uploadMode === 'tfstate'
-              ? 'bg-[#ED7100] text-white'
-              : 'bg-white text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          .tfstate (deployed)
-        </button>
-        <button
-          onClick={() => setUploadMode('hcl')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${
-            uploadMode === 'hcl'
-              ? 'bg-[#ED7100] text-white'
-              : 'bg-white text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          .tf source files
-        </button>
-      </div>
-
-      <div className="w-full max-w-lg">
-        <Upload
-          mode={uploadMode}
-          onFileAccepted={handleFileAccepted}
-          onFilesAccepted={handleFilesAccepted}
-        />
-      </div>
-
-      <div className="flex items-center gap-4">
-        {uploadMode === 'tfstate' && (
-          <button
-            onClick={handleTrySample}
-            className="text-xs text-slate-400 hover:text-[#ED7100] transition-colors underline underline-offset-2"
-          >
-            Try with sample infrastructure
-          </button>
-        )}
-        <button
-          onClick={handleNewUpload}
-          className="text-xs text-slate-400 hover:text-slate-600 transition-colors underline underline-offset-2"
-        >
-          Change provider
-        </button>
-      </div>
-    </main>
-  );
+  return null;
 }

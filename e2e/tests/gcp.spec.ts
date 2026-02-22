@@ -6,31 +6,18 @@ const FIXTURE = path.resolve(
   '../../apps/backend/src/fixtures/gcp-sample.tfstate'
 );
 
-async function selectGcpProvider(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: /Google Cloud Platform/i }).click();
-  await expect(page.getByText(/drag & drop/i).first()).toBeVisible({ timeout: 5_000 });
-}
-
+/** Upload GCP fixture directly from the landing page */
 async function uploadAndParse(page: import('@playwright/test').Page) {
-  await selectGcpProvider(page);
-  const fileInput = page.locator('input[type="file"]');
+  const fileInput = page.locator('input[type="file"]').first();
   await fileInput.setInputFiles(FIXTURE);
   await page.getByRole('button', { name: 'Parse' }).click();
   await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe('GCP provider flow', () => {
-  test('GCP card is enabled on provider selection page', async ({ page }) => {
+  test('GCP card is visible on landing page', async ({ page }) => {
     await page.goto('/');
-    const gcpButton = page.getByRole('button', { name: /Google Cloud Platform/i });
-    await expect(gcpButton).toBeVisible();
-    await expect(gcpButton).toBeEnabled();
-  });
-
-  test('shows upload area after selecting GCP', async ({ page }) => {
-    await page.goto('/');
-    await selectGcpProvider(page);
-    await expect(page.getByText(/drag & drop/i).first()).toBeVisible();
+    await expect(page.getByText(/Google Cloud Platform/i)).toBeVisible();
   });
 
   test('uploads GCP tfstate and renders VPC', async ({ page }) => {

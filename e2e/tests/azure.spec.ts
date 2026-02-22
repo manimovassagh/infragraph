@@ -6,31 +6,18 @@ const FIXTURE = path.resolve(
   '../../apps/backend/src/fixtures/azure-sample.tfstate'
 );
 
-async function selectAzureProvider(page: import('@playwright/test').Page) {
-  await page.getByRole('button', { name: /Microsoft Azure/i }).click();
-  await expect(page.getByText(/drag & drop/i).first()).toBeVisible({ timeout: 5_000 });
-}
-
+/** Upload Azure fixture directly from the landing page */
 async function uploadAndParse(page: import('@playwright/test').Page) {
-  await selectAzureProvider(page);
-  const fileInput = page.locator('input[type="file"]');
+  const fileInput = page.locator('input[type="file"]').first();
   await fileInput.setInputFiles(FIXTURE);
   await page.getByRole('button', { name: 'Parse' }).click();
   await expect(page.locator('.react-flow')).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe('Azure provider flow', () => {
-  test('Azure card is enabled on provider selection page', async ({ page }) => {
+  test('Azure card is visible on landing page', async ({ page }) => {
     await page.goto('/');
-    const azureButton = page.getByRole('button', { name: /Microsoft Azure/i });
-    await expect(azureButton).toBeVisible();
-    await expect(azureButton).toBeEnabled();
-  });
-
-  test('shows upload area after selecting Azure', async ({ page }) => {
-    await page.goto('/');
-    await selectAzureProvider(page);
-    await expect(page.getByText(/drag & drop/i).first()).toBeVisible();
+    await expect(page.getByText(/Microsoft Azure/i)).toBeVisible();
   });
 
   test('uploads Azure tfstate and renders VNet', async ({ page }) => {

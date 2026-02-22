@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Ec2Icon } from './nodes/icons/AwsIcons';
 import { AzureVmIcon } from './nodes/icons/AzureIcons';
 import { GcpInstanceIcon } from './nodes/icons/GcpIcons';
+import { Upload } from './Upload';
 
 interface ProviderDef {
   id: CloudProvider;
   name: string;
+  shortName: string;
   description: string;
   color: string;
   count: string;
@@ -17,6 +19,7 @@ const providers: ProviderDef[] = [
   {
     id: 'aws',
     name: 'Amazon Web Services',
+    shortName: 'AWS',
     description: 'EC2, RDS, S3, Lambda, VPC, Subnets, Load Balancers, and more',
     color: '#FF9900',
     count: '20+',
@@ -25,6 +28,7 @@ const providers: ProviderDef[] = [
   {
     id: 'azure',
     name: 'Microsoft Azure',
+    shortName: 'Azure',
     description: 'VMs, SQL, Storage, Functions, VNets, NSGs, and more',
     color: '#0078D4',
     count: '12+',
@@ -33,6 +37,7 @@ const providers: ProviderDef[] = [
   {
     id: 'gcp',
     name: 'Google Cloud Platform',
+    shortName: 'GCP',
     description: 'Compute, Cloud SQL, GCS, Functions, VPCs, and more',
     color: '#4285F4',
     count: '11+',
@@ -40,17 +45,12 @@ const providers: ProviderDef[] = [
   },
 ];
 
-const steps = [
-  { num: '1', label: 'Upload .tfstate' },
-  { num: '2', label: 'Auto-detect provider' },
-  { num: '3', label: 'Interactive diagram' },
-];
-
 interface ProviderSelectProps {
-  onSelect: (provider: CloudProvider) => void;
+  onUpload: (files: File[], mode: 'tfstate' | 'hcl') => void;
+  onTrySample: (provider: CloudProvider) => void;
 }
 
-export function ProviderSelect({ onSelect }: ProviderSelectProps) {
+export function ProviderSelect({ onUpload, onTrySample }: ProviderSelectProps) {
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains('dark'),
   );
@@ -64,146 +64,144 @@ export function ProviderSelect({ onSelect }: ProviderSelectProps) {
 
   return (
     <main
-      className={`relative min-h-screen flex flex-col items-center px-6 pt-20 pb-16 ${dark ? 'landing-bg' : 'landing-bg-light'}`}
+      className={`relative min-h-screen flex flex-col items-center justify-center px-6 py-8 ${dark ? 'landing-bg' : 'landing-bg-light'}`}
     >
-      {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-5 right-5 z-10 p-2.5 rounded-xl border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-        aria-label="Toggle theme"
-      >
-        {dark ? (
-          <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        )}
-      </button>
-
-      {/* ── Badge ── */}
-      <div className="relative z-10 mb-8">
-        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/5 px-4 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 backdrop-blur-sm">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Open-source infrastructure visualization
-        </span>
-      </div>
+      {/* ── Top nav bar ── */}
+      <nav className="absolute top-0 left-0 right-0 z-20 flex items-center justify-end px-6 py-4">
+        <div className="flex items-center gap-1">
+          {[
+            { label: 'Docs', href: '/docs' },
+            { label: 'API', href: '/api' },
+            { label: 'AI', href: '/ai' },
+          ].map((tab) => (
+            <a
+              key={tab.label}
+              href={tab.href}
+              className="px-3.5 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+            >
+              {tab.label}
+            </a>
+          ))}
+          <div className="w-px h-5 bg-slate-300 dark:bg-white/15 mx-1.5" />
+          <a
+            href="https://github.com/manimovassagh/aws-architect"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+          >
+            GitHub
+          </a>
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors ml-1"
+            aria-label="Toggle theme"
+          >
+            {dark ? (
+              <svg className="w-4 h-4 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </nav>
 
       {/* ── Hero ── */}
-      <div className="relative z-10 text-center mb-8">
-        <h1 className="text-gradient text-6xl sm:text-8xl font-extrabold tracking-tight leading-none">
+      <div className="relative z-10 text-center mb-5">
+        <h1 className="text-gradient text-5xl sm:text-7xl font-extrabold tracking-tight leading-none">
           InfraGraph
         </h1>
-        <p className="mt-6 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Turn your Terraform state files into beautiful, interactive
-          architecture diagrams.{' '}
+        <p className="mt-3 text-base sm:text-lg text-slate-500 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
+          Turn Terraform files into interactive architecture diagrams.{' '}
           <span className="text-slate-700 dark:text-slate-200 font-medium">
-            Upload a .tfstate — see your infrastructure in seconds.
+            Drop any file — everything is auto-detected.
           </span>
         </p>
       </div>
 
       {/* ── Stats ── */}
-      <div className="relative z-10 flex items-center gap-6 sm:gap-10 mb-14 text-center">
+      <div className="relative z-10 flex items-center gap-5 sm:gap-8 mb-5 text-center">
         <div>
-          <div className="text-2xl font-bold text-slate-800 dark:text-white">3</div>
-          <div className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Cloud Providers</div>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">3</div>
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Providers</div>
         </div>
-        <div className="h-8 w-px bg-slate-200 dark:bg-white/10" />
+        <div className="h-6 w-px bg-slate-200 dark:bg-white/10" />
         <div>
-          <div className="text-2xl font-bold text-slate-800 dark:text-white">43+</div>
-          <div className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resource Types</div>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">43+</div>
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resources</div>
         </div>
-        <div className="h-8 w-px bg-slate-200 dark:bg-white/10" />
+        <div className="h-6 w-px bg-slate-200 dark:bg-white/10" />
         <div>
-          <div className="text-2xl font-bold text-slate-800 dark:text-white">0</div>
-          <div className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Config Needed</div>
+          <div className="text-xl font-bold text-slate-800 dark:text-white">0</div>
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Config</div>
         </div>
       </div>
 
-      {/* ── Provider select heading ── */}
-      <p className="relative z-10 text-xs font-medium text-slate-400 dark:text-slate-500 mb-5 tracking-widest uppercase">
-        Select your cloud provider
-      </p>
+      {/* ── Upload area (primary CTA) ── */}
+      <div className="relative z-10 w-full max-w-xl mb-4">
+        <Upload onSubmit={onUpload} />
+      </div>
 
-      {/* ── Provider cards ── */}
-      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl w-full mb-16">
+      {/* ── Try sample links ── */}
+      <div className="relative z-10 flex items-center gap-3 mb-8 text-xs">
+        <span className="text-slate-400 dark:text-slate-500">Try a sample:</span>
+        {providers.map((p, i) => (
+          <span key={p.id} className="flex items-center gap-2">
+            {i > 0 && <span className="text-slate-300 dark:text-slate-600">&middot;</span>}
+            <button
+              onClick={() => onTrySample(p.id)}
+              className="font-medium hover:underline underline-offset-2 transition-colors"
+              style={{ color: p.color }}
+            >
+              {p.name}
+            </button>
+          </span>
+        ))}
+      </div>
+
+      {/* ── Provider cards (compact, informational) ── */}
+      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl w-full mb-6">
         {providers.map((p) => {
           const Icon = p.icon;
           return (
-            <button
+            <div
               key={p.id}
-              onClick={() => onSelect(p.id)}
-              className="landing-card rounded-2xl p-7 text-left cursor-pointer group"
+              className="landing-card rounded-xl px-5 py-4 text-left group"
               style={{ '--glow-color': p.color } as React.CSSProperties}
             >
-              {/* Icon + badge */}
-              <div className="flex items-start justify-between mb-5">
+              <div className="flex items-center gap-3 mb-2">
                 <div
-                  className="h-14 w-14 rounded-2xl flex items-center justify-center shadow-lg ring-1 ring-black/5 dark:ring-white/10 transition-transform duration-200 group-hover:scale-110"
+                  className="h-9 w-9 rounded-lg flex items-center justify-center ring-1 ring-black/5 dark:ring-white/10 transition-transform duration-200 group-hover:scale-110"
                   style={{ background: `linear-gradient(135deg, ${p.color}22, ${p.color}0a)` }}
                 >
-                  <Icon className="h-8 w-8" />
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-slate-900 dark:text-white text-sm leading-tight">
+                    {p.shortName}
+                  </h3>
                 </div>
                 <span
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-full tracking-wide"
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full tracking-wide shrink-0"
                   style={{ backgroundColor: `${p.color}15`, color: p.color }}
                 >
-                  {p.count} types
+                  {p.count}
                 </span>
               </div>
-
-              {/* Name + description */}
-              <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight mb-1.5">
-                {p.name}
-              </h3>
-              <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed mb-5">
+              <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-snug">
                 {p.description}
               </p>
-
-              {/* CTA */}
-              <div
-                className="flex items-center gap-1.5 text-sm font-semibold transition-colors"
-                style={{ color: p.color }}
-              >
-                <span>Get started</span>
-                <svg
-                  className="w-4 h-4 transition-transform group-hover:translate-x-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </div>
-            </button>
+            </div>
           );
         })}
       </div>
 
-      {/* ── How it works ── */}
-      <div className="relative z-10 flex flex-wrap items-center justify-center gap-3 sm:gap-5 mb-16 text-sm text-slate-500 dark:text-slate-400">
-        {steps.map((s, i) => (
-          <div key={s.num} className="flex items-center gap-2 sm:gap-3">
-            {i > 0 && (
-              <svg className="w-4 h-4 text-slate-300 dark:text-slate-600 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-            )}
-            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-200 dark:bg-white/10 text-[11px] font-bold text-slate-600 dark:text-slate-300">
-              {s.num}
-            </span>
-            <span>{s.label}</span>
-          </div>
-        ))}
-      </div>
-
       {/* ── Footer ── */}
-      <footer className="absolute bottom-6 z-10 flex items-center gap-2.5 text-xs text-slate-400 dark:text-slate-500">
-        <span className="font-mono">v1.3</span>
+      <footer className="relative z-10 flex items-center gap-2.5 text-xs text-slate-400 dark:text-slate-500">
+        <span className="font-mono">v2.0</span>
         <span className="text-slate-300 dark:text-slate-700">&middot;</span>
         <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 16 16">
@@ -211,22 +209,6 @@ export function ProviderSelect({ onSelect }: ProviderSelectProps) {
           </svg>
           Open Source
         </span>
-        <span className="text-slate-300 dark:text-slate-700">&middot;</span>
-        <a
-          href="https://github.com/manimovassagh/aws-architect"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-        >
-          GitHub
-        </a>
-        <span className="text-slate-300 dark:text-slate-700">&middot;</span>
-        <a
-          href="/docs"
-          className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-        >
-          Docs
-        </a>
       </footer>
     </main>
   );
