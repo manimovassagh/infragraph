@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import type { CloudProvider, ParseResponse } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { getProviderFrontendConfig } from '@/providers';
@@ -33,6 +34,19 @@ export function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const canvasRef = useRef<CanvasHandle>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Sync view with route using derived state (no useEffect needed).
+  // When back button changes pathname from /canvas → /, reset to landing.
+  const [lastPathname, setLastPathname] = useState(location.pathname);
+  if (location.pathname !== lastPathname) {
+    setLastPathname(location.pathname);
+    if (lastPathname === '/canvas' && location.pathname === '/' && state.view === 'canvas') {
+      setProviderConfig(null);
+      setState({ view: 'landing' });
+    }
+  }
 
   function toggleDarkMode() {
     const next = !darkMode;
@@ -83,6 +97,7 @@ export function HomePage() {
       const config = await getProviderFrontendConfig(data.provider);
       setProviderConfig(config);
       setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName });
+      navigate('/canvas');
     } catch (err) {
       setState({
         view: 'error',
@@ -114,6 +129,7 @@ export function HomePage() {
       const config = await getProviderFrontendConfig(data.provider);
       setProviderConfig(config);
       setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: sampleName });
+      navigate('/canvas');
     } catch (err) {
       setState({
         view: 'error',
@@ -126,6 +142,7 @@ export function HomePage() {
   function handleNewUpload() {
     setProviderConfig(null);
     setState({ view: 'landing' });
+    navigate('/');
   }
 
   function handleQuickUpload() {
@@ -149,6 +166,11 @@ export function HomePage() {
       handleSmartUpload([fileList[0]], 'tfstate');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  // Direct /canvas access with no data → redirect to landing
+  if (location.pathname === '/canvas' && state.view !== 'canvas') {
+    return <Navigate to="/" replace />;
   }
 
   // Landing view
