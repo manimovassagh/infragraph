@@ -1,4 +1,4 @@
-import type { CloudProvider } from '@awsarchitect/shared';
+import type { CloudProvider } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from './types';
 
 // Eagerly load AWS since it's the primary provider.

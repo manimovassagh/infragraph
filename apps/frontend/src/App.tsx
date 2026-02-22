@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CloudProvider, ParseResponse } from '@awsarchitect/shared';
+import type { CloudProvider, ParseResponse } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { getProviderFrontendConfig } from '@/providers';
 import { ProviderSelect } from '@/components/ProviderSelect';

@@ -1,5 +1,5 @@
 import { parse } from '@cdktf/hcl2json';
-import type { CloudResource, ProviderConfig } from '@awsarchitect/shared';
+import type { CloudResource, ProviderConfig } from '@infragraph/shared';
 
 /**
  * Parse HCL .tf files and extract CloudResources compatible with buildGraphFromResources().

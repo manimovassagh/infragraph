@@ -1,4 +1,4 @@
-import type { CloudProvider, ProviderConfig, Tfstate } from '@awsarchitect/shared';
+import type { CloudProvider, ProviderConfig, Tfstate } from '@infragraph/shared';
 import { awsProvider } from './aws.js';
 import { azureProvider } from './azure.js';
 import { gcpProvider } from './gcp.js';

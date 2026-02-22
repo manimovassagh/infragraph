@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@awsarchitect/shared';
+import type { ProviderConfig } from '@infragraph/shared';
 
 export const gcpProvider: ProviderConfig = {
   id: 'gcp',

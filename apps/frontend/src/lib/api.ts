@@ -1,4 +1,4 @@
-import type { CloudProvider, ParseResponse, ApiError } from '@awsarchitect/shared';
+import type { CloudProvider, ParseResponse, ApiError } from '@infragraph/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 

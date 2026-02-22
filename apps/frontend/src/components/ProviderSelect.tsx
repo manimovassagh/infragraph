@@ -1,4 +1,4 @@
-import type { CloudProvider } from '@awsarchitect/shared';
+import type { CloudProvider } from '@infragraph/shared';
 
 interface ProviderCard {
   id: CloudProvider;

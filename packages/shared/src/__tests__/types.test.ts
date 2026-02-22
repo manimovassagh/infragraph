@@ -14,7 +14,7 @@ describe('shared types', () => {
 
   it('AwsResource shape satisfies minimal contract', () => {
     // Compile-time contract check — if this file compiles, the types are correct
-    const resource: import('@awsarchitect/shared').AwsResource = {
+    const resource: import('@infragraph/shared').AwsResource = {
       id: 'aws_vpc.main',
       type: 'aws_vpc',
       name: 'main',
@@ -29,7 +29,7 @@ describe('shared types', () => {
   });
 
   it('GraphNode shape satisfies minimal contract', () => {
-    const node: import('@awsarchitect/shared').GraphNode = {
+    const node: import('@infragraph/shared').GraphNode = {
       id: 'aws_vpc.main',
       type: 'vpcNode',
       position: { x: 0, y: 0 },
@@ -52,7 +52,7 @@ describe('shared types', () => {
   });
 
   it('GraphEdge shape satisfies minimal contract', () => {
-    const edge: import('@awsarchitect/shared').GraphEdge = {
+    const edge: import('@infragraph/shared').GraphEdge = {
       id: 'e-a-b',
       source: 'aws_vpc.main',
       target: 'aws_subnet.public',
@@ -63,7 +63,7 @@ describe('shared types', () => {
   });
 
   it('ParseResponse shape satisfies minimal contract', () => {
-    const resp: import('@awsarchitect/shared').ParseResponse = {
+    const resp: import('@infragraph/shared').ParseResponse = {
       nodes: [],
       edges: [],
       resources: [],
@@ -75,7 +75,7 @@ describe('shared types', () => {
   });
 
   it('NodeType includes all expected variants', () => {
-    const validTypes: import('@awsarchitect/shared').NodeType[] = [
+    const validTypes: import('@infragraph/shared').NodeType[] = [
       'vpcNode',
       'subnetNode',
       'igwNode',

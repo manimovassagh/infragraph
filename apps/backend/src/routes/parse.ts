@@ -5,7 +5,7 @@ import { parseTfstate } from '../parser/tfstate.js';
 import { buildGraph, buildGraphFromResources } from '../parser/graph.js';
 import { extractResourcesFromHcl } from '../parser/hcl.js';
 import { detectProvider, detectProviderFromTypes, getProvider } from '../providers/index.js';
-import type { CloudProvider, ParseResponse, ApiError } from '@awsarchitect/shared';
+import type { CloudProvider, ParseResponse, ApiError } from '@infragraph/shared';
 
 export const parseRouter = Router();
 
@@ -117,7 +117,7 @@ parseRouter.post('/parse/hcl', hclUpload.array('files', 50), async (req, res) =>
     // For simplicity, parse first with detected provider
     // Quick-parse to get resource type keys
     const { parse: parseHcl } = await import('@cdktf/hcl2json');
-    let allTypes: string[] = [];
+    const allTypes: string[] = [];
     for (const [name, content] of fileMap) {
       const result = await parseHcl(name, content);
       const resourceBlocks = result['resource'] as Record<string, unknown> | undefined;

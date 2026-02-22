@@ -6,7 +6,7 @@ import type {
   NodeType,
   ParseResponse,
   ProviderConfig,
-} from '@awsarchitect/shared';
+} from '@infragraph/shared';
 import { extractResources } from './tfstate.js';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────

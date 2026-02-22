@@ -3,7 +3,7 @@ import type {
   TfstateResource,
   CloudResource,
   ProviderConfig,
-} from '@awsarchitect/shared';
+} from '@infragraph/shared';
 
 // ─── Parse raw JSON string into Tfstate ──────────────────────────────────────
 

@@ -1,4 +1,3 @@
-import type { Node } from 'reactflow';
 import type { ProviderFrontendConfig } from '../types';
 import { GenericNode } from '@/components/nodes/GenericNode';
 
@@ -12,7 +11,7 @@ export const azureFrontendConfig: ProviderFrontendConfig = {
   typeMeta: {},
   interestingAttrs: {},
   typeConfig: {},
-  minimapNodeColor(_node: Node): string {
+  minimapNodeColor(): string {
     return '#0078D4';
   },
 };

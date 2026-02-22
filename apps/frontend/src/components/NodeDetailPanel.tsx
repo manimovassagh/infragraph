@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CloudResource, GraphEdge } from '@awsarchitect/shared';
+import type { CloudResource, GraphEdge } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { GenericIcon } from './nodes/icons/AwsIcons';
 

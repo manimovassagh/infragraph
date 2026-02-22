@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseTfstate, extractResources } from '../../parser/tfstate.js';
 import { awsProvider } from '../../providers/aws.js';
-import type { Tfstate } from '@awsarchitect/shared';
+import type { Tfstate } from '@infragraph/shared';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 

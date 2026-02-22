@@ -8,7 +8,7 @@ import ReactFlow, {
   type Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import type { GraphNode, GraphEdge, GraphNodeData } from '@awsarchitect/shared';
+import type { GraphNode, GraphEdge, GraphNodeData } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 
 const defaultEdgeOptions = {

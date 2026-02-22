@@ -1,4 +1,4 @@
-import type { CloudResource } from '@awsarchitect/shared';
+import type { CloudResource } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { GenericIcon } from './nodes/icons/AwsIcons';
 
