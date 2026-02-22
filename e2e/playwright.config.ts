@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
-    ? [['list'], ['github'], ['html', { open: 'never' }]]
+    ? [['list'], ['github'], ['junit', { outputFile: '../test-results/e2e.xml' }], ['html', { open: 'never' }]]
     : 'html',
   timeout: 60_000,
   expect: {
