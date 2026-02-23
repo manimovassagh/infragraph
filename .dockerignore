@@ -15,5 +15,6 @@ coverage
 .turbo
 test
 e2e
+supabase
 **/*.md
 LICENSE
