@@ -152,6 +152,43 @@ export interface Tfstate {
   resources: TfstateResource[];
 }
 
+// ─── User & Session Models ───────────────────────────────────────────────────
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string | null;
+  tier: 'free' | 'pro' | 'team' | 'enterprise';
+  sessionLimit: number;
+}
+
+export interface Session {
+  id: string;
+  userId: string;
+  provider: CloudProvider;
+  fileName: string;
+  resourceCount: number;
+  data: ParseResponse;
+  createdAt: string;
+}
+
+/** Lightweight summary for list endpoints (no data blob). */
+export interface SessionSummary {
+  id: string;
+  provider: CloudProvider;
+  fileName: string;
+  resourceCount: number;
+  createdAt: string;
+}
+
+export interface CreateSessionRequest {
+  provider: CloudProvider;
+  fileName: string;
+  resourceCount: number;
+  data: ParseResponse;
+}
+
 // ─── Provider Configuration (contract each provider implements) ──────────────
 
 export interface ContainerTypeConfig {
