@@ -168,7 +168,7 @@ export function HistoryPage() {
         )}
 
         {/* Loading */}
-        {(authLoading || loading) && user && (
+        {(authLoading || (loading && user)) && (
           <div className="flex justify-center py-16">
             <div className="h-6 w-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
           </div>

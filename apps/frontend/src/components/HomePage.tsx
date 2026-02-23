@@ -75,7 +75,7 @@ export function HomePage() {
           selectedNodeId: null,
           fileName: session.fileName,
         });
-        navigate('/canvas');
+        navigate('/canvas', { replace: true });
       });
     } catch {
       // Corrupted session data — ignore
