@@ -48,17 +48,20 @@ export function HistoryPage() {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    let cancelled = false;
     async function fetchSessions() {
       try {
         const data = await listSessions();
-        setSessions(data);
+        if (!cancelled) setSessions(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load sessions');
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load sessions');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchSessions();
+    return () => { cancelled = true; };
   }, [user, authLoading]);
 
   async function handleLoad(id: string) {
