@@ -9,7 +9,8 @@ import { Canvas, type CanvasHandle } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { ResourceSummary } from '@/components/ResourceSummary';
 import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
-import { parseFile, parseHcl } from '@/lib/api';
+import { parseFile, parseHcl, saveSession } from '@/lib/api';
+import { useAuth } from '@/lib/AuthContext';
 
 const PROVIDER_META: Record<string, { label: string; color: string }> = {
   aws: { label: 'AWS', color: '#FF9900' },
@@ -24,6 +25,7 @@ type AppState =
   | { view: 'canvas'; provider: CloudProvider; data: ParseResponse; selectedNodeId: string | null; fileName: string };
 
 export function HomePage() {
+  const { user } = useAuth();
   const [state, setState] = useState<AppState>({ view: 'landing' });
   const [searchQuery, setSearchQuery] = useState('');
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
@@ -55,6 +57,29 @@ export function HomePage() {
     document.documentElement.classList.toggle('dark', next);
     localStorage.setItem('theme', next ? 'dark' : 'light');
   }
+
+  // Hydrate canvas from session history (if navigated from /history)
+  useEffect(() => {
+    const raw = sessionStorage.getItem('loadSession');
+    if (!raw) return;
+    sessionStorage.removeItem('loadSession');
+    try {
+      const session = JSON.parse(raw) as { provider: CloudProvider; fileName: string; data: ParseResponse };
+      getProviderFrontendConfig(session.provider).then((config) => {
+        setProviderConfig(config);
+        setState({
+          view: 'canvas',
+          provider: session.provider,
+          data: session.data,
+          selectedNodeId: null,
+          fileName: session.fileName,
+        });
+        navigate('/canvas');
+      });
+    } catch {
+      // Corrupted session data — ignore
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -108,6 +133,16 @@ export function HomePage() {
       setProviderConfig(config);
       setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName });
       navigate('/canvas');
+
+      // Fire-and-forget save if logged in
+      if (user) {
+        void saveSession({
+          provider: data.provider,
+          fileName,
+          resourceCount: data.resources.length,
+          data,
+        }).catch(() => {}); // silent — never block UI
+      }
     } catch (err) {
       setState({
         view: 'error',
@@ -140,6 +175,16 @@ export function HomePage() {
       setProviderConfig(config);
       setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: sampleName });
       navigate('/canvas');
+
+      // Fire-and-forget save if logged in
+      if (user) {
+        void saveSession({
+          provider: data.provider,
+          fileName: sampleName,
+          resourceCount: data.resources.length,
+          data,
+        }).catch(() => {});
+      }
     } catch (err) {
       setState({
         view: 'error',
@@ -235,23 +280,26 @@ export function HomePage() {
 
         <div className="flex flex-1 min-h-0">
           <div className="flex-1 relative">
-            <ResourceSummary
-              resources={state.data.resources}
-              hiddenTypes={hiddenTypes}
-              providerConfig={providerConfig}
-              onToggleType={(type) =>
-                setHiddenTypes((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(type)) next.delete(type);
-                  else next.add(type);
-                  return next;
-                })
-              }
-              onResetFilters={() => setHiddenTypes(new Set())}
-            />
-            <SearchBar ref={searchBarRef} onSearch={setSearchQuery} />
-            {/* Toolbar */}
-            <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+            {/* Unified toolbar */}
+            <div className="absolute top-3 left-3 right-3 z-10 flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm min-w-0 overflow-x-auto">
+                <ResourceSummary
+                  resources={state.data.resources}
+                  hiddenTypes={hiddenTypes}
+                  providerConfig={providerConfig}
+                  onToggleType={(type) =>
+                    setHiddenTypes((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(type)) next.delete(type);
+                      else next.add(type);
+                      return next;
+                    })
+                  }
+                  onResetFilters={() => setHiddenTypes(new Set())}
+                />
+              </div>
+              <SearchBar ref={searchBarRef} onSearch={setSearchQuery} />
+              <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => canvasRef.current?.exportPng()}
                 className="flex items-center gap-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 transition-colors"
@@ -306,6 +354,7 @@ export function HomePage() {
                 </svg>
                 Home
               </button>
+              </div>
             </div>
             {/* Provider badge — bottom-left */}
             {(() => {
@@ -345,8 +394,8 @@ export function HomePage() {
               }
             />
           </div>
-          <div className="w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 overflow-y-auto shadow-sm shrink-0">
-            {selectedResource ? (
+          {selectedResource && (
+            <div className="w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 overflow-y-auto shadow-sm shrink-0 animate-slide-in">
               <NodeDetailPanel
                 resource={selectedResource}
                 edges={state.data.edges}
@@ -363,16 +412,8 @@ export function HomePage() {
                   )
                 }
               />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <svg className="h-12 w-12 text-slate-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-                </svg>
-                <p className="text-sm text-slate-400">Click a node to inspect it</p>
-                <p className="text-xs text-slate-300 mt-1">View attributes, tags, and connections</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Keyboard shortcuts overlay */}
