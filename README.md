@@ -189,27 +189,87 @@ GitHub endpoints accept an optional `X-GitHub-Token` header for private repo acc
 | **Azure** | Supported | VNet, Subnet, VM, Storage, SQL, Functions, NSG, Public IP, LB, AKS, and more |
 | **GCP** | Supported | VPC, Subnet, Compute, Cloud SQL, GCS, Functions, Firewall, LB, GKE, and more |
 
-## Test Fixtures
+## GitHub Integration
 
-The project includes 22 test fixtures covering diverse AWS architectures:
+InfraGraph connects directly to GitHub so you can visualize Terraform projects without downloading files.
 
-**`.tf` source projects** (`test/fixtures/projects/`):
+### How It Works
 
-| # | Project | Description |
-|---|---------|-------------|
-| 01 | static-site | CloudFront + S3 + Route53 + WAF |
-| 02 | microservices | EKS cluster + RDS + Redis + ECR |
-| 03 | data-lake | Glue + Kinesis + S3 zones + Athena |
-| 04 | cicd-pipeline | CodePipeline + CodeBuild + ECR |
-| 05 | monitoring | CloudWatch alarms + SNS + Firehose |
-| 06 | multi-region | Active-active with Route53 failover |
-| 07 | container-platform | ECS Fargate + ALB + Service Discovery |
-| 08 | serverless-api | API Gateway + Lambda + DynamoDB + SQS |
-| 09 | ml-pipeline | SageMaker + Step Functions + Lambda |
-| 10 | network-hub | Transit Gateway + VPN + 3 VPCs |
-| 11 | full-stack | Compute + Networking + Serverless combined |
+1. Click **Connect GitHub Repo** on the home page
+2. Authorize via GitHub OAuth (popup — you stay on the page)
+3. Browse your repositories (including private repos)
+4. Select a repo → InfraGraph scans for Terraform projects
+5. Pick a project → instant architecture diagram
 
-**`.tfstate` files** (`test/fixtures/tfstate/`) — ordered simple to complex (6 → 16 resources).
+### Public Repos (No Auth)
+
+You can also paste any public GitHub repo URL without connecting:
+
+```
+https://github.com/hashicorp/terraform-provider-aws
+```
+
+### Security
+
+- GitHub tokens are stored in your browser only — never on the server
+- OAuth scope is limited to `repo` (read access)
+- No code is cloned or stored — files are fetched on demand and processed in memory
+- Click **Disconnect** at any time to revoke access
+
+## API Usage
+
+InfraGraph's REST API lets you integrate infrastructure visualization into your workflows — CI/CD pipelines, internal dashboards, or custom tools.
+
+### Scan a GitHub Repo
+
+```bash
+curl -X POST http://localhost:3001/api/github/scan \
+  -H "Content-Type: application/json" \
+  -H "X-GitHub-Token: ghp_your_token" \
+  -d '{"repoUrl": "https://github.com/your-org/infrastructure"}'
+```
+
+Returns a list of directories containing `.tf` files:
+
+```json
+{
+  "owner": "your-org",
+  "repo": "infrastructure",
+  "defaultBranch": "main",
+  "projects": [
+    { "path": "environments/production", "files": ["main.tf", "variables.tf"] },
+    { "path": "modules/networking", "files": ["vpc.tf", "subnets.tf"] }
+  ]
+}
+```
+
+### Parse a Terraform Project
+
+```bash
+curl -X POST http://localhost:3001/api/github/parse \
+  -H "Content-Type: application/json" \
+  -H "X-GitHub-Token: ghp_your_token" \
+  -d '{"repoUrl": "https://github.com/your-org/infrastructure", "projectPath": "environments/production"}'
+```
+
+### Upload a State File
+
+```bash
+curl -X POST http://localhost:3001/api/parse \
+  -F "tfstate=@terraform.tfstate"
+```
+
+### Send Raw JSON
+
+```bash
+curl -X POST http://localhost:3001/api/parse/raw \
+  -H "Content-Type: application/json" \
+  -d '{"tfstate": "<your-state-json>"}'
+```
+
+All parse responses return graph data (nodes, edges, resources, provider) that can be rendered with React Flow or any graph library.
+
+> **Tip:** The `X-GitHub-Token` header is optional for public repos. Adding it increases the GitHub API rate limit from 60 to 5,000 requests per hour.
 
 ## License
 
