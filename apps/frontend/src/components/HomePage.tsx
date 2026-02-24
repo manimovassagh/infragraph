@@ -194,6 +194,31 @@ export function HomePage() {
     }
   }
 
+  async function handleGitHubParsed(data: ParseResponse, fileName: string) {
+    if (data.resources.length === 0) {
+      setState({
+        view: 'error',
+        message: 'No resources found in this Terraform project.',
+        fileName,
+      });
+      return;
+    }
+    const config = await getProviderFrontendConfig(data.provider);
+    setProviderConfig(config);
+    setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName });
+    navigate('/canvas');
+
+    // Fire-and-forget save if logged in
+    if (user) {
+      void saveSession({
+        provider: data.provider,
+        fileName,
+        resourceCount: data.resources.length,
+        data,
+      }).catch(() => {});
+    }
+  }
+
   function handleNewUpload() {
     setProviderConfig(null);
     setState({ view: 'landing' });
@@ -235,6 +260,7 @@ export function HomePage() {
       <ProviderSelect
         onUpload={handleSmartUpload}
         onTrySample={handleTrySample}
+        onGitHubParsed={handleGitHubParsed}
       />
     );
   }

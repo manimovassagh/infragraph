@@ -1,8 +1,9 @@
-import type { CloudProvider } from '@infragraph/shared';
+import type { CloudProvider, ParseResponse } from '@infragraph/shared';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Upload } from './Upload';
 import { UserMenu } from './UserMenu';
+import { GitHubConnectModal } from './GitHubConnectModal';
 
 const GITHUB_PATH =
   'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
@@ -16,12 +17,14 @@ const samples: { id: CloudProvider; label: string; color: string; count: string 
 interface ProviderSelectProps {
   onUpload: (files: File[], mode: 'tfstate' | 'hcl') => void;
   onTrySample: (provider: CloudProvider) => void;
+  onGitHubParsed: (data: ParseResponse, fileName: string) => void;
 }
 
-export function ProviderSelect({ onUpload, onTrySample }: ProviderSelectProps) {
+export function ProviderSelect({ onUpload, onTrySample, onGitHubParsed }: ProviderSelectProps) {
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains('dark'),
   );
+  const [showGitHub, setShowGitHub] = useState(false);
 
   function toggleTheme() {
     const next = !dark;
@@ -111,6 +114,17 @@ export function ProviderSelect({ onUpload, onTrySample }: ProviderSelectProps) {
               <Upload onSubmit={onUpload} />
             </div>
 
+            {/* GitHub connect */}
+            <button
+              onClick={() => setShowGitHub(true)}
+              className="flex items-center gap-2 mt-5 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                <path d={GITHUB_PATH} />
+              </svg>
+              Connect GitHub Repo
+            </button>
+
             {/* Sample pill buttons */}
             <div className="flex items-center gap-3 mt-6">
               <span className="text-base text-slate-400 dark:text-slate-500">Try a sample:</span>
@@ -144,6 +158,16 @@ export function ProviderSelect({ onUpload, onTrySample }: ProviderSelectProps) {
         <span>&middot;</span>
         <span className="font-medium">Open Source</span>
       </footer>
+
+      {showGitHub && (
+        <GitHubConnectModal
+          onClose={() => setShowGitHub(false)}
+          onParsed={(data, fileName) => {
+            setShowGitHub(false);
+            onGitHubParsed(data, fileName);
+          }}
+        />
+      )}
     </main>
   );
 }
