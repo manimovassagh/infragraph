@@ -98,10 +98,10 @@ export function HistoryPage() {
           >
             InfraGraph
           </Link>
-          {['Docs', 'API', 'AI'].map((label) => (
+          {[{ label: 'Docs', path: '/docs' }, { label: 'API', path: '/reference' }, { label: 'AI', path: '/ai' }].map(({ label, path }) => (
             <Link
               key={label}
-              to={`/${label.toLowerCase()}`}
+              to={path}
               className="px-3 py-2 text-sm font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
             >
               {label}

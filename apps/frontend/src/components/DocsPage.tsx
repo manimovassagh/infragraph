@@ -5,10 +5,12 @@ import { UserMenu } from './UserMenu';
 const GITHUB_PATH =
   'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
 
-type Section = 'quickstart' | 'providers' | 'api' | 'keyboard';
+type Section = 'overview' | 'quickstart' | 'github' | 'providers' | 'api' | 'keyboard';
 
 const sections: { id: Section; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
   { id: 'quickstart', label: 'Quick Start' },
+  { id: 'github', label: 'GitHub Integration' },
   { id: 'providers', label: 'Providers' },
   { id: 'api', label: 'API Reference' },
   { id: 'keyboard', label: 'Keyboard Shortcuts' },
@@ -37,9 +39,9 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
 }
 
 const pathToSection: Record<string, Section> = {
-  '/docs': 'quickstart',
-  '/api': 'api',
-  '/ai': 'quickstart',
+  '/docs': 'overview',
+  '/reference': 'api',
+  '/ai': 'overview',
 };
 
 interface SearchEntry {
@@ -49,24 +51,43 @@ interface SearchEntry {
 }
 
 const searchIndex: SearchEntry[] = [
+  // Overview
+  { section: 'overview', title: 'What is InfraGraph?', text: 'InfraGraph is an open-source infrastructure visualization platform that transforms Terraform code into interactive architecture diagrams. Multi-cloud support for AWS Azure GCP. Connect GitHub repos, upload files, or call the API.' },
+  { section: 'overview', title: 'Use Cases', text: 'Architecture reviews, onboarding, compliance audits, CI/CD pipeline integration, documentation generation, infrastructure drift detection, team collaboration.' },
+  { section: 'overview', title: 'Features', text: 'Multi-cloud auto-detection, nested container layout VPC Subnet, GitHub repo scanning, private repo access, session history, export PNG SVG, search filter resources, dark mode.' },
+  // Quick Start
   { section: 'quickstart', title: 'Upload your Terraform file', text: 'Drop a .tfstate or .tf file onto the upload zone, or click to browse. InfraGraph auto-detects the cloud provider. Supported formats: Terraform state files, HCL configuration files, JSON-format state files.' },
   { section: 'quickstart', title: 'Parse and visualize', text: 'Click Parse to send the file to the backend. InfraGraph extracts resources, resolves relationships, and builds a nested graph with VPCs, subnets laid out automatically.' },
   { section: 'quickstart', title: 'Explore your infrastructure', text: 'Click a node to inspect attributes tags connections. Search resources with Cmd+K. Filter by resource type. Export diagram as PNG.' },
+  // GitHub Integration
+  { section: 'github', title: 'Connect to GitHub', text: 'One-click OAuth connection to browse your repositories. Access private repos, scan for Terraform projects, parse directly from GitHub without downloading files.' },
+  { section: 'github', title: 'Repo Browser', text: 'Search and browse your GitHub repositories. Private repos shown with lock icon. Click to scan for Terraform projects. Select a project to visualize.' },
+  { section: 'github', title: 'Public Repo URL', text: 'Paste any public GitHub repo URL to scan for Terraform projects without authentication. Works with any public repository containing .tf files.' },
+  // Providers
   { section: 'providers', title: 'AWS Provider', text: 'AWS VPC Subnet EC2 Instance RDS S3 Bucket Lambda Function Load Balancer Security Group Internet Gateway NAT Gateway ECS EKS CloudFront DynamoDB SNS SQS Route53 IAM' },
   { section: 'providers', title: 'Azure Provider', text: 'Azure Virtual Network Subnet Virtual Machine SQL Database Storage Account Function App Load Balancer Public IP Network Security Group AKS App Service' },
   { section: 'providers', title: 'GCP Provider', text: 'GCP VPC Network Subnetwork Compute Instance Cloud SQL Cloud Storage Cloud Function Forwarding Rule Firewall GKE Pub/Sub Cloud Run' },
   { section: 'providers', title: 'Container Nesting', text: 'Resources nested inside parent containers. AWS: Subnets inside VPCs. Azure: Subnets inside Virtual Networks. GCP: Subnetworks inside VPC Networks.' },
-  { section: 'api', title: 'POST /api/parse', text: 'Parse a .tfstate file and return the architecture graph. Upload via multipart form. Provider override with query parameter.' },
-  { section: 'api', title: 'POST /api/parse/hcl', text: 'Parse multiple .tf HCL files and return the architecture graph.' },
-  { section: 'api', title: 'POST /api/parse/raw', text: 'Parse raw tfstate JSON string from request body.' },
+  // API Reference
+  { section: 'api', title: 'POST /api/parse', text: 'Parse a .tfstate file upload via multipart form and return architecture graph data with nodes edges resources.' },
+  { section: 'api', title: 'POST /api/parse/raw', text: 'Parse raw tfstate JSON string from request body. Ideal for programmatic access and CI/CD pipelines.' },
+  { section: 'api', title: 'POST /api/github/token', text: 'Exchange GitHub OAuth authorization code for access token. Returns token username and avatar.' },
+  { section: 'api', title: 'GET /api/github/repos', text: 'List authenticated user repositories including private repos. Requires X-GitHub-Token header.' },
+  { section: 'api', title: 'POST /api/github/scan', text: 'Scan a GitHub repository for directories containing Terraform .tf files. Returns list of projects with file counts.' },
+  { section: 'api', title: 'POST /api/github/parse', text: 'Parse a Terraform project directly from GitHub repo. Fetches .tf files and returns graph data. Supports private repos with token.' },
   { section: 'api', title: 'GET /health', text: 'Health check endpoint. Returns status ok and version.' },
+  { section: 'api', title: 'Authentication', text: 'GitHub token passed via X-GitHub-Token header. Optional for public repos, required for private repos. Increases rate limit from 60 to 5000 requests per hour.' },
+  // Keyboard
   { section: 'keyboard', title: 'Keyboard Shortcuts', text: 'Cmd+K focus search bar. Escape clear search deselect node. ? toggle keyboard shortcuts help. Scroll zoom. Click drag pan canvas.' },
   { section: 'keyboard', title: 'Canvas Controls', text: 'Zoom in out. Fit view auto-fit all nodes. Toggle interactivity lock unlock panning zooming. Minimap overview.' },
 ];
 
+const docsSections: Section[] = ['overview', 'quickstart', 'github', 'providers', 'keyboard'];
+
 export function DocsPage() {
   const location = useLocation();
-  const urlSection = pathToSection[location.pathname] ?? 'quickstart';
+  const isApiPage = location.pathname === '/reference';
+  const urlSection = pathToSection[location.pathname] ?? 'overview';
   const [override, setOverride] = useState<Section | null>(null);
   const [lastPath, setLastPath] = useState(location.pathname);
   const [dark, setDark] = useState(() =>
@@ -115,8 +136,7 @@ export function DocsPage() {
           >
             InfraGraph
           </Link>
-          {['Docs', 'API', 'AI'].map((label) => {
-            const path = `/${label.toLowerCase()}`;
+          {[{ label: 'Docs', path: '/docs' }, { label: 'API', path: '/reference' }, { label: 'AI', path: '/ai' }].map(({ label, path }) => {
             const isActive = location.pathname === path;
             return (
               <Link
@@ -166,82 +186,98 @@ export function DocsPage() {
       </nav>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-8 py-8 flex gap-12">
-        {/* Sidebar */}
-        <aside className="hidden md:block w-48 shrink-0">
-          <div className="sticky top-8">
-            <div className="relative mb-4">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search docs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-colors"
-              />
+      {isApiPage ? (
+        /* API Reference — full-width, dedicated layout */
+        <div className="max-w-5xl mx-auto px-8 py-8">
+          <ApiSection />
+        </div>
+      ) : (
+        /* Documentation — sidebar + content */
+        <div className="max-w-6xl mx-auto px-8 py-8 flex gap-12">
+          {/* Sidebar */}
+          <aside className="hidden md:block w-48 shrink-0">
+            <div className="sticky top-8">
+              <div className="relative mb-4">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search docs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-colors"
+                />
+              </div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
+                Documentation
+              </p>
+              <nav className="flex flex-col gap-0.5">
+                {sections.filter(s => docsSections.includes(s.id)).map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setActive(s.id)}
+                    className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      active === s.id
+                        ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+                <Link
+                  to="/reference"
+                  className="text-left px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors flex items-center gap-1"
+                >
+                  API Reference
+                  <svg className="w-3 h-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                </Link>
+              </nav>
             </div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-3">
-              Documentation
-            </p>
-            <nav className="flex flex-col gap-0.5">
-              {sections.map((s) => (
+          </aside>
+
+          {/* Main content */}
+          <main className="flex-1 min-w-0">
+            {/* Mobile section tabs */}
+            <div className="md:hidden flex gap-1 mb-8 overflow-x-auto pb-2">
+              {sections.filter(s => docsSections.includes(s.id)).map((s) => (
                 <button
                   key={s.id}
                   onClick={() => setActive(s.id)}
-                  className={`text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                     active === s.id
-                      ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   {s.label}
                 </button>
               ))}
-            </nav>
-          </div>
-        </aside>
+            </div>
 
-        {/* Main content */}
-        <main className="flex-1 min-w-0">
-          {/* Mobile section tabs */}
-          <div className="md:hidden flex gap-1 mb-8 overflow-x-auto pb-2">
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setActive(s.id)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  active === s.id
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {isSearching ? (
-            <SearchResults
-              results={searchResults}
-              query={searchQuery}
-              onNavigate={(section) => {
-                setActive(section);
-                setSearchQuery('');
-              }}
-            />
-          ) : (
-            <>
-              {active === 'quickstart' && <QuickStartSection />}
-              {active === 'providers' && <ProvidersSection />}
-              {active === 'api' && <ApiSection />}
-              {active === 'keyboard' && <KeyboardSection dark={dark} />}
-            </>
-          )}
-        </main>
-      </div>
+            {isSearching ? (
+              <SearchResults
+                results={searchResults}
+                query={searchQuery}
+                onNavigate={(section) => {
+                  setActive(section);
+                  setSearchQuery('');
+                }}
+              />
+            ) : (
+              <>
+                {active === 'overview' && <OverviewSection onNavigate={setActive} />}
+                {active === 'quickstart' && <QuickStartSection />}
+                {active === 'github' && <GitHubSection />}
+                {active === 'providers' && <ProvidersSection />}
+                {active === 'keyboard' && <KeyboardSection dark={dark} />}
+              </>
+            )}
+          </main>
+        </div>
+      )}
     </div>
   );
 }
@@ -261,7 +297,9 @@ function highlightMatch(text: string, query: string): React.ReactNode {
 }
 
 const sectionLabels: Record<Section, string> = {
+  overview: 'Overview',
   quickstart: 'Quick Start',
+  github: 'GitHub Integration',
   providers: 'Providers',
   api: 'API Reference',
   keyboard: 'Keyboard Shortcuts',
@@ -317,6 +355,141 @@ function SearchResults({
   );
 }
 
+/* ─── Overview Section ──────────────────────────────────────────────── */
+
+function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
+  return (
+    <div className="space-y-10">
+      {/* Hero */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">InfraGraph Documentation</h1>
+        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
+          InfraGraph is an open-source infrastructure visualization platform that transforms
+          your Terraform code into interactive, multi-cloud architecture diagrams — in seconds.
+        </p>
+      </div>
+
+      {/* Hero screenshot */}
+      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-lg">
+        <img
+          src="/screenshots/canvas-aws.png"
+          alt="InfraGraph AWS architecture diagram showing VPCs, subnets, EC2 instances, and other resources"
+          className="w-full"
+          loading="lazy"
+        />
+      </div>
+
+      {/* Value props */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        {[
+          {
+            icon: (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+              </svg>
+            ),
+            title: 'Multi-Cloud',
+            desc: 'AWS, Azure, and GCP with automatic provider detection from your resource types.',
+          },
+          {
+            icon: (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              </svg>
+            ),
+            title: 'GitHub Native',
+            desc: 'Connect your GitHub account to browse repos and parse Terraform projects directly.',
+          },
+          {
+            icon: (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+              </svg>
+            ),
+            title: 'API-First',
+            desc: 'Full REST API for programmatic access. Integrate into CI/CD, scripts, or your own tools.',
+          },
+        ].map((item) => (
+          <div key={item.title} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
+            <div className="flex items-center gap-2.5 mb-2 text-violet-600 dark:text-violet-400">
+              {item.icon}
+              <h3 className="font-semibold text-sm">{item.title}</h3>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{item.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* How it works */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">How It Works</h2>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            { step: '1', title: 'Provide Terraform', desc: 'Upload a file, connect a GitHub repo, or send JSON via the API.' },
+            { step: '2', title: 'Parse & Analyze', desc: 'InfraGraph extracts resources, resolves dependencies, and detects the cloud provider.' },
+            { step: '3', title: 'Visualize', desc: 'Interactive diagram with nested containers, searchable resources, and export to PNG.' },
+          ].map((item) => (
+            <div key={item.step} className="flex gap-3">
+              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold shrink-0">{item.step}</span>
+              <div>
+                <p className="font-medium text-sm text-slate-900 dark:text-white">{item.title}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Use Cases */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Use Cases</h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[
+            { title: 'Architecture Reviews', desc: 'Visualize infrastructure before and after changes. Share diagrams in pull request discussions.' },
+            { title: 'Team Onboarding', desc: 'Give new engineers an instant visual overview of your cloud infrastructure across all environments.' },
+            { title: 'Compliance & Audits', desc: 'Generate up-to-date architecture diagrams for security reviews and compliance documentation.' },
+            { title: 'CI/CD Integration', desc: 'Call the API from pipelines to auto-generate diagrams on every Terraform change.' },
+            { title: 'Documentation', desc: 'Export diagrams as PNG for wikis, runbooks, and internal documentation. Always current, never stale.' },
+            { title: 'Multi-Cloud Visibility', desc: 'Visualize AWS, Azure, and GCP infrastructure side by side with consistent, provider-branded diagrams.' },
+          ].map((item) => (
+            <div key={item.title} className="flex items-start gap-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span className="text-violet-500 mt-0.5 shrink-0">&#9679;</span>
+              <div>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick links */}
+      <div className="grid sm:grid-cols-3 gap-3">
+        <button
+          onClick={() => onNavigate('quickstart')}
+          className="p-4 rounded-xl border text-left transition-colors border-violet-200 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/5 hover:bg-violet-100 dark:hover:bg-violet-500/10"
+        >
+          <p className="font-semibold text-sm text-violet-700 dark:text-violet-300">Quick Start Guide &rarr;</p>
+        </button>
+        <button
+          onClick={() => onNavigate('github')}
+          className="p-4 rounded-xl border text-left transition-colors border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+        >
+          <p className="font-semibold text-sm text-slate-900 dark:text-white">GitHub Integration &rarr;</p>
+        </button>
+        <Link
+          to="/reference"
+          className="p-4 rounded-xl border text-left transition-colors border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+        >
+          <p className="font-semibold text-sm text-slate-900 dark:text-white">API Reference &rarr;</p>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Quick Start Section ───────────────────────────────────────────── */
+
 function QuickStartSection() {
   return (
     <div className="space-y-8">
@@ -325,6 +498,16 @@ function QuickStartSection() {
         <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
           Get your Terraform infrastructure visualized in under 30 seconds.
         </p>
+      </div>
+
+      {/* Home page screenshot */}
+      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-md">
+        <img
+          src="/screenshots/home-dark.png"
+          alt="InfraGraph home page with upload zone, GitHub connect button, and sample infrastructure buttons"
+          className="w-full"
+          loading="lazy"
+        />
       </div>
 
       {/* Step 1 */}
@@ -402,6 +585,21 @@ function QuickStartSection() {
         </ul>
       </div>
 
+      {/* Alternative: GitHub */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-600 text-white text-sm font-bold">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16"><path d={GITHUB_PATH} /></svg>
+          </span>
+          <h2 className="text-xl font-semibold">Or connect from GitHub</h2>
+        </div>
+        <p className="text-slate-500 dark:text-slate-400 ml-10">
+          Click <strong>Connect GitHub Repo</strong> on the home page to browse your repositories
+          and select a Terraform project directly — no file downloads needed. Works with both
+          public and private repos.
+        </p>
+      </div>
+
       {/* Try it now */}
       <div className="p-5 rounded-xl border border-violet-200 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/5">
         <p className="font-semibold text-violet-700 dark:text-violet-300">Try it now</p>
@@ -414,6 +612,126 @@ function QuickStartSection() {
     </div>
   );
 }
+
+/* ─── GitHub Integration Section ────────────────────────────────────── */
+
+function GitHubSection() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">GitHub Integration</h1>
+        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
+          Connect your GitHub account to browse repositories, scan for Terraform projects,
+          and visualize infrastructure — all without downloading files.
+        </p>
+      </div>
+
+      {/* How it works */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Connect Your Account</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          InfraGraph uses GitHub OAuth to securely access your repositories. Your token is stored
+          locally in your browser and never persisted on the server.
+        </p>
+        <ol className="text-sm text-slate-500 dark:text-slate-400 space-y-3 ml-4">
+          <li className="flex items-start gap-2">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-xs font-bold shrink-0 mt-0.5">1</span>
+            <span>Click <strong className="text-slate-700 dark:text-slate-300">Connect GitHub Repo</strong> on the home page</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-xs font-bold shrink-0 mt-0.5">2</span>
+            <span>Click <strong className="text-slate-700 dark:text-slate-300">Connect to GitHub</strong> — a popup opens for authorization</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-xs font-bold shrink-0 mt-0.5">3</span>
+            <span>Authorize InfraGraph — the popup closes and you&#39;re connected</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 text-xs font-bold shrink-0 mt-0.5">4</span>
+            <span>Browse your repos, select one, pick a Terraform project, and visualize</span>
+          </li>
+        </ol>
+      </div>
+
+      {/* Features */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Features</h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[
+            { title: 'Private Repos', desc: 'Access private repositories after connecting your GitHub account. Private repos are shown with a lock icon.' },
+            { title: 'Repo Search', desc: 'Instantly search across all your repositories by name. Results update as you type.' },
+            { title: 'Auto-Scan', desc: 'InfraGraph scans the entire repository tree to find directories containing .tf files — no manual path entry needed.' },
+            { title: 'Direct Parse', desc: 'Parse Terraform files directly from GitHub. Files are fetched on demand — nothing is cloned or stored locally.' },
+          ].map((item) => (
+            <div key={item.title} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Public URL fallback */}
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold">Public Repos (No Auth Required)</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          You can scan any public GitHub repository without connecting your account.
+          Just paste the repo URL in the input field:
+        </p>
+        <CodeBlock lang="text">{`https://github.com/hashicorp/terraform-provider-aws`}</CodeBlock>
+        <p className="text-xs text-slate-400 dark:text-slate-500">
+          Note: Public access is limited to 60 GitHub API requests per hour.
+          Connecting your account increases this to 5,000 requests per hour.
+        </p>
+      </div>
+
+      {/* Security */}
+      <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Security & Privacy</p>
+        <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5">
+          <li className="flex items-start gap-2">
+            <span className="text-green-500 shrink-0">&#10003;</span>
+            <span>GitHub tokens are stored in your browser only — never on InfraGraph servers</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-500 shrink-0">&#10003;</span>
+            <span>OAuth scope is limited to <code className="text-xs font-mono">repo</code> (read access)</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-500 shrink-0">&#10003;</span>
+            <span>Click <strong className="text-slate-700 dark:text-slate-300">Disconnect</strong> at any time to revoke access</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-green-500 shrink-0">&#10003;</span>
+            <span>No code is cloned, stored, or cached — files are fetched on demand and processed in memory</span>
+          </li>
+        </ul>
+      </div>
+
+      {/* API usage */}
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold">Programmatic Access</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          The GitHub integration is also available via the REST API. Scan repos and parse projects
+          from CI/CD pipelines, scripts, or custom integrations:
+        </p>
+        <CodeBlock lang="bash">{`# Scan a repo for Terraform projects
+curl -X POST http://localhost:3001/api/github/scan \\
+  -H "Content-Type: application/json" \\
+  -H "X-GitHub-Token: ghp_your_token" \\
+  -d '{"repoUrl": "https://github.com/your-org/infrastructure"}'
+
+# Parse a specific project
+curl -X POST http://localhost:3001/api/github/parse \\
+  -H "Content-Type: application/json" \\
+  -H "X-GitHub-Token: ghp_your_token" \\
+  -d '{"repoUrl": "https://github.com/your-org/infrastructure", "projectPath": "prod"}'`}</CodeBlock>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Providers Section ─────────────────────────────────────────────── */
 
 function ProvidersSection() {
   const providers = [
@@ -457,7 +775,8 @@ function ProvidersSection() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Providers</h1>
         <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          InfraGraph supports three major cloud providers with auto-detection.
+          InfraGraph supports three major cloud providers with automatic detection and
+          provider-branded visual components.
         </p>
       </div>
 
@@ -510,25 +829,69 @@ function ProvidersSection() {
   );
 }
 
+/* ─── API Reference Section ─────────────────────────────────────────── */
+
 function ApiSection() {
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">API Reference</h1>
         <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          InfraGraph exposes a REST API for programmatic access. The backend runs on port 3001 by default.
+          InfraGraph exposes a full REST API for programmatic access. Integrate infrastructure
+          visualization into your CI/CD pipelines, internal tools, or custom workflows.
         </p>
       </div>
 
-      <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+      {/* Base URL & Swagger */}
+      <div className="space-y-3">
+        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              <strong className="text-slate-700 dark:text-slate-300">Base URL:</strong>{' '}
+              <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+                http://localhost:3001
+              </code>
+            </p>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            <strong className="text-slate-700 dark:text-slate-300">Swagger UI:</strong>{' '}
+            Interactive API docs at{' '}
+            <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+              /docs
+            </code>{' '}
+            — try endpoints directly from the browser.
+          </p>
+        </div>
+      </div>
+
+      {/* Authentication */}
+      <div className="space-y-3">
+        <h2 className="text-xl font-semibold">Authentication</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          <strong className="text-slate-700 dark:text-slate-300">Swagger UI:</strong>{' '}
-          Interactive API docs are available at{' '}
-          <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
-            http://localhost:3001/docs
-          </code>{' '}
-          when the backend is running.
+          Parse endpoints work without authentication for public data. To access private GitHub
+          repos, pass a GitHub token via the <code className="text-xs font-mono">X-GitHub-Token</code> header:
         </p>
+        <CodeBlock lang="bash">{`# Public repos — no auth needed
+curl -X POST http://localhost:3001/api/github/scan \\
+  -H "Content-Type: application/json" \\
+  -d '{"repoUrl": "https://github.com/hashicorp/terraform"}'
+
+# Private repos — pass your GitHub token
+curl -X POST http://localhost:3001/api/github/scan \\
+  -H "Content-Type: application/json" \\
+  -H "X-GitHub-Token: ghp_your_token" \\
+  -d '{"repoUrl": "https://github.com/your-org/private-infra"}'`}</CodeBlock>
+        <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/5">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            <strong>Rate limits:</strong> Without a token, GitHub allows 60 requests/hour.
+            With a token, you get 5,000 requests/hour.
+          </p>
+        </div>
+      </div>
+
+      {/* Divider: Parse Endpoints */}
+      <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+        <h2 className="text-lg font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-xs mb-6">Parse Endpoints</h2>
       </div>
 
       {/* POST /api/parse */}
@@ -540,7 +903,8 @@ function ApiSection() {
           <code className="text-sm font-mono font-semibold">/api/parse</code>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Parse a <code className="text-xs font-mono">.tfstate</code> file and return the architecture graph.
+          Parse a <code className="text-xs font-mono">.tfstate</code> file via multipart upload
+          and return the architecture graph.
         </p>
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Request</p>
@@ -554,11 +918,11 @@ curl -X POST "http://localhost:3001/api/parse?provider=aws" \\
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Response</p>
           <CodeBlock lang="json">{`{
-  "nodes": [...],      // React Flow graph nodes
-  "edges": [...],      // React Flow graph edges
-  "resources": [...],  // Extracted CloudResource objects
+  "nodes": [...],      // React Flow graph nodes (id, type, position, data)
+  "edges": [...],      // React Flow graph edges (source, target, label)
+  "resources": [...],  // Extracted resource objects (type, name, attributes)
   "provider": "aws",   // Detected or specified provider
-  "warnings": []       // Parse warnings
+  "warnings": []       // Parse warnings (if any)
 }`}</CodeBlock>
         </div>
       </div>
@@ -572,7 +936,8 @@ curl -X POST "http://localhost:3001/api/parse?provider=aws" \\
           <code className="text-sm font-mono font-semibold">/api/parse/hcl</code>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Parse multiple <code className="text-xs font-mono">.tf</code> HCL files and return the architecture graph.
+          Parse multiple <code className="text-xs font-mono">.tf</code> HCL configuration files
+          and return the architecture graph.
         </p>
         <CodeBlock lang="bash">{`curl -X POST http://localhost:3001/api/parse/hcl \\
   -F "files=@main.tf" \\
@@ -589,11 +954,154 @@ curl -X POST "http://localhost:3001/api/parse?provider=aws" \\
           <code className="text-sm font-mono font-semibold">/api/parse/raw</code>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Parse raw tfstate JSON string from request body.
+          Parse raw tfstate JSON from the request body. Ideal for programmatic access
+          when you already have the state as a string.
         </p>
         <CodeBlock lang="bash">{`curl -X POST http://localhost:3001/api/parse/raw \\
   -H "Content-Type: application/json" \\
-  -d '{"tfstate": "{...}"}'`}</CodeBlock>
+  -d '{"tfstate": "<your-state-json-string>"}'`}</CodeBlock>
+      </div>
+
+      {/* Divider: GitHub Endpoints */}
+      <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+        <h2 className="text-lg font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-xs mb-6">GitHub Endpoints</h2>
+      </div>
+
+      {/* POST /api/github/token */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-1 rounded text-xs font-bold bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400">
+            POST
+          </span>
+          <code className="text-sm font-mono font-semibold">/api/github/token</code>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Exchange a GitHub OAuth authorization code for an access token.
+          Returns the token along with the authenticated user&#39;s profile.
+        </p>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Request</p>
+          <CodeBlock lang="bash">{`curl -X POST http://localhost:3001/api/github/token \\
+  -H "Content-Type: application/json" \\
+  -d '{"code": "github_oauth_code"}'`}</CodeBlock>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Response</p>
+          <CodeBlock lang="json">{`{
+  "access_token": "gho_xxxxxxxxxxxx",
+  "username": "octocat",
+  "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4"
+}`}</CodeBlock>
+        </div>
+      </div>
+
+      {/* GET /api/github/repos */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-1 rounded text-xs font-bold bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400">
+            GET
+          </span>
+          <code className="text-sm font-mono font-semibold">/api/github/repos</code>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          List the authenticated user&#39;s repositories, sorted by most recently pushed.
+          Includes private repositories.
+        </p>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Request</p>
+          <CodeBlock lang="bash">{`curl http://localhost:3001/api/github/repos \\
+  -H "X-GitHub-Token: gho_your_token"`}</CodeBlock>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Response</p>
+          <CodeBlock lang="json">{`[
+  {
+    "name": "infrastructure",
+    "full_name": "your-org/infrastructure",
+    "description": "Production cloud infrastructure",
+    "private": true,
+    "pushed_at": "2026-02-24T10:30:00Z",
+    "default_branch": "main",
+    "html_url": "https://github.com/your-org/infrastructure"
+  }
+]`}</CodeBlock>
+        </div>
+      </div>
+
+      {/* POST /api/github/scan */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-1 rounded text-xs font-bold bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400">
+            POST
+          </span>
+          <code className="text-sm font-mono font-semibold">/api/github/scan</code>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Scan a GitHub repository for directories containing <code className="text-xs font-mono">.tf</code> files.
+          Returns a list of Terraform projects with their file listings.
+        </p>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Request</p>
+          <CodeBlock lang="bash">{`curl -X POST http://localhost:3001/api/github/scan \\
+  -H "Content-Type: application/json" \\
+  -H "X-GitHub-Token: gho_your_token" \\
+  -d '{"repoUrl": "https://github.com/your-org/infrastructure"}'`}</CodeBlock>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Response</p>
+          <CodeBlock lang="json">{`{
+  "owner": "your-org",
+  "repo": "infrastructure",
+  "defaultBranch": "main",
+  "projects": [
+    {
+      "path": "environments/production",
+      "files": ["main.tf", "variables.tf", "outputs.tf"],
+      "resourceCount": 0
+    },
+    {
+      "path": "modules/networking",
+      "files": ["vpc.tf", "subnets.tf"],
+      "resourceCount": 0
+    }
+  ]
+}`}</CodeBlock>
+        </div>
+      </div>
+
+      {/* POST /api/github/parse */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="px-2 py-1 rounded text-xs font-bold bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-400">
+            POST
+          </span>
+          <code className="text-sm font-mono font-semibold">/api/github/parse</code>
+        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Parse a Terraform project directly from a GitHub repository. Fetches <code className="text-xs font-mono">.tf</code> files
+          from the specified directory, parses HCL, and returns graph data.
+        </p>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Request</p>
+          <CodeBlock lang="bash">{`curl -X POST http://localhost:3001/api/github/parse \\
+  -H "Content-Type: application/json" \\
+  -H "X-GitHub-Token: gho_your_token" \\
+  -d '{
+    "repoUrl": "https://github.com/your-org/infrastructure",
+    "projectPath": "environments/production"
+  }'`}</CodeBlock>
+        </div>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Response</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Same response format as <code className="text-xs font-mono">/api/parse</code> — nodes, edges, resources, provider, warnings.
+          </p>
+        </div>
+      </div>
+
+      {/* Divider: System */}
+      <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+        <h2 className="text-lg font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-xs mb-6">System</h2>
       </div>
 
       {/* GET /health */}
@@ -605,26 +1113,44 @@ curl -X POST "http://localhost:3001/api/parse?provider=aws" \\
           <code className="text-sm font-mono font-semibold">/health</code>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Health check endpoint.
+          Health check endpoint. Use for monitoring and load balancer health probes.
         </p>
-        <CodeBlock lang="json">{`{ "status": "ok", "version": "1.0.0" }`}</CodeBlock>
+        <CodeBlock lang="json">{`{ "status": "ok", "version": "4.0.0" }`}</CodeBlock>
       </div>
 
       {/* Error format */}
       <div className="space-y-3">
         <h2 className="text-xl font-semibold">Error Responses</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          All errors return a JSON object with <code className="text-xs font-mono">error</code> and
+          All errors return a consistent JSON object with <code className="text-xs font-mono">error</code> and
           optional <code className="text-xs font-mono">details</code> fields:
         </p>
         <CodeBlock lang="json">{`{
   "error": "Failed to parse tfstate",
   "details": "Unexpected token at position 42"
 }`}</CodeBlock>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className="py-2 pr-4 font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                <th className="py-2 font-semibold text-slate-700 dark:text-slate-300">Meaning</th>
+              </tr>
+            </thead>
+            <tbody className="text-slate-500 dark:text-slate-400">
+              <tr className="border-b border-slate-100 dark:border-slate-800"><td className="py-2 pr-4 font-mono text-xs">400</td><td className="py-2">Bad request — missing or invalid input</td></tr>
+              <tr className="border-b border-slate-100 dark:border-slate-800"><td className="py-2 pr-4 font-mono text-xs">401</td><td className="py-2">Unauthorized — missing or invalid GitHub token</td></tr>
+              <tr className="border-b border-slate-100 dark:border-slate-800"><td className="py-2 pr-4 font-mono text-xs">404</td><td className="py-2">Not found — repo or project path not found</td></tr>
+              <tr><td className="py-2 pr-4 font-mono text-xs">422</td><td className="py-2">Unprocessable — parse or processing failed</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
+
+/* ─── Keyboard Section ──────────────────────────────────────────────── */
 
 function KeyboardSection({ dark }: { dark: boolean }) {
   const shortcuts = [

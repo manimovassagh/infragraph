@@ -52,7 +52,7 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/canvas" element={<HomePage />} />
         <Route path="/docs" element={<DocsPage />} />
-        <Route path="/api" element={<DocsPage />} />
+        <Route path="/reference" element={<DocsPage />} />
         <Route path="/ai" element={<ComingSoonPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
