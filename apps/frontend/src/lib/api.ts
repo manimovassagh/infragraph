@@ -1,4 +1,4 @@
-import type { CloudProvider, ParseResponse, ApiError, SessionSummary, Session, CreateSessionRequest } from '@infragraph/shared';
+import type { CloudProvider, ParseResponse, ApiError, SessionSummary, Session, CreateSessionRequest, GitHubScanResponse } from '@infragraph/shared';
 import { supabase } from './supabase';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -105,4 +105,34 @@ export async function deleteSession(id: string): Promise<void> {
     const err: ApiError = await res.json();
     throw new Error(err.details ?? err.error);
   }
+}
+
+// ─── GitHub Connect API ─────────────────────────────────────────────────────
+
+export async function scanGitHubRepo(repoUrl: string): Promise<GitHubScanResponse> {
+  const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+  const res = await fetch(`${API_BASE}/api/github/scan`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ repoUrl }),
+  });
+  if (!res.ok) {
+    const err: ApiError = await res.json();
+    throw new Error(err.details ?? err.error);
+  }
+  return res.json();
+}
+
+export async function parseGitHubProject(repoUrl: string, projectPath: string): Promise<ParseResponse> {
+  const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
+  const res = await fetch(`${API_BASE}/api/github/parse`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ repoUrl, projectPath }),
+  });
+  if (!res.ok) {
+    const err: ApiError = await res.json();
+    throw new Error(err.details ?? err.error);
+  }
+  return res.json();
 }
