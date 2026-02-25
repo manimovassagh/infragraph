@@ -105,6 +105,21 @@ describe('extractResourcesFromPlan', () => {
     expect(warnings).toContainEqual(expect.stringContaining('Unmapped type: custom_thing'));
   });
 
+  it('extracts sensitive keys from before_sensitive/after_sensitive', () => {
+    const { resources } = extractResourcesFromPlan(plan, awsProvider);
+    // The RDS instances have { password: true } in sensitive fields
+    const legacy = resources.find((r) => r.id === 'aws_db_instance.legacy')!;
+    expect(legacy.sensitiveKeys).toContain('password');
+    const primary = resources.find((r) => r.id === 'aws_db_instance.primary')!;
+    expect(primary.sensitiveKeys).toContain('password');
+  });
+
+  it('omits sensitiveKeys when none exist', () => {
+    const { resources } = extractResourcesFromPlan(plan, awsProvider);
+    const vpc = resources.find((r) => r.id === 'aws_vpc.main')!;
+    expect(vpc.sensitiveKeys).toBeUndefined();
+  });
+
   it('sets provider correctly from config', () => {
     const { resources } = extractResourcesFromPlan(plan, awsProvider);
     for (const r of resources) {

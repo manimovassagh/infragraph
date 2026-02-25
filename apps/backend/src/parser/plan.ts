@@ -90,6 +90,15 @@ export function extractResourcesFromPlan(
       warnings.push(`Unmapped type: ${rc.type} (${rc.address})`);
     }
 
+    // Collect sensitive keys from before_sensitive / after_sensitive
+    const sensitiveKeys = new Set<string>();
+    const sensitiveSrc = planAction === 'delete' ? rc.change.before_sensitive : rc.change.after_sensitive;
+    if (sensitiveSrc && typeof sensitiveSrc === 'object') {
+      for (const [k, v] of Object.entries(sensitiveSrc)) {
+        if (v === true) sensitiveKeys.add(k);
+      }
+    }
+
     const resource: CloudResource = {
       id,
       type: rc.type,
@@ -99,6 +108,7 @@ export function extractResourcesFromPlan(
       dependencies: [],
       provider: provider.id,
       tags,
+      ...(sensitiveKeys.size > 0 ? { sensitiveKeys: Array.from(sensitiveKeys) } : {}),
     };
 
     resources.push(resource);

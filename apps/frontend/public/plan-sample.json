@@ -198,6 +198,7 @@
           "engine": "mysql",
           "instance_class": "db.t3.micro",
           "allocated_storage": 20,
+          "password": "supersecret123",
           "tags": { "Name": "legacy-database" }
         },
         "after": null,

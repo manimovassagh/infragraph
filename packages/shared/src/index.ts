@@ -63,6 +63,8 @@ export interface CloudResource {
   region?: string;
   /** Tags extracted from attributes */
   tags: Record<string, string>;
+  /** Attribute keys that contain sensitive values (passwords, secrets, etc.) */
+  sensitiveKeys?: string[];
 }
 
 // ─── AWS-specific Resource ───────────────────────────────────────────────────
@@ -158,6 +160,8 @@ export interface TfstateInstance {
   schema_version: number;
   attributes: Record<string, unknown>;
   dependencies?: string[];
+  /** Sensitive attribute paths — e.g. [["password"], ["private_key"]] */
+  sensitive_attributes?: unknown[][];
 }
 
 export interface Tfstate {

@@ -203,4 +203,58 @@ describe('extractResources', () => {
     expect(types).toContain('aws_db_instance');
     expect(types).toContain('aws_s3_bucket');
   });
+
+  it('extracts sensitive keys from sensitive_attributes', () => {
+    const sensitiveState: Tfstate = {
+      version: 4,
+      terraform_version: '1.6.0',
+      resources: [
+        {
+          mode: 'managed',
+          type: 'aws_db_instance',
+          name: 'db',
+          provider: 'provider["registry.terraform.io/hashicorp/aws"]',
+          instances: [
+            {
+              schema_version: 1,
+              attributes: { id: 'db-1', engine: 'postgres', password: 'secret123' },
+              sensitive_attributes: [['password']],
+            },
+          ],
+        },
+      ],
+    };
+    const { resources } = extractResources(sensitiveState, awsProvider);
+    expect(resources[0]!.sensitiveKeys).toContain('password');
+  });
+
+  it('detects common sensitive patterns in attribute names', () => {
+    const patternState: Tfstate = {
+      version: 4,
+      terraform_version: '1.6.0',
+      resources: [
+        {
+          mode: 'managed',
+          type: 'aws_instance',
+          name: 'test',
+          provider: 'provider["registry.terraform.io/hashicorp/aws"]',
+          instances: [
+            {
+              schema_version: 1,
+              attributes: { id: 'i-1', secret_key: 'abc', api_key: 'xyz' },
+            },
+          ],
+        },
+      ],
+    };
+    const { resources } = extractResources(patternState, awsProvider);
+    expect(resources[0]!.sensitiveKeys).toContain('secret_key');
+    expect(resources[0]!.sensitiveKeys).toContain('api_key');
+  });
+
+  it('omits sensitiveKeys when none exist', () => {
+    const { resources } = extractResources(fixture, awsProvider);
+    const vpc = resources.find((r) => r.id === 'aws_vpc.main')!;
+    expect(vpc.sensitiveKeys).toBeUndefined();
+  });
 });

@@ -1,7 +1,16 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import type { CloudResource, GraphEdge } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { GenericIcon } from './nodes/icons/AwsIcons';
+
+// Lock icon SVG for sensitive fields
+function LockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+    </svg>
+  );
+}
 
 function formatAttrKey(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -27,8 +36,20 @@ interface NodeDetailPanelProps {
 
 export function NodeDetailPanel({ resource, edges, resources, providerConfig, onClose, onSelectResource }: NodeDetailPanelProps) {
   const [copied, setCopied] = useState(false);
+  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const meta = providerConfig.typeMeta[resource.type] ?? { label: resource.type, color: '#7B8794', Icon: GenericIcon };
   const { Icon } = meta;
+
+  const sensitiveKeys = new Set(resource.sensitiveKeys ?? []);
+
+  const toggleReveal = useCallback((key: string) => {
+    setRevealedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   // Find connected resources via edges
   const connections = edges
@@ -41,9 +62,13 @@ export function NodeDetailPanel({ resource, edges, resources, providerConfig, on
     })
     .filter((c) => c.otherResource);
 
-  // Get interesting attributes for this resource type
+  // Get interesting attributes for this resource type + any sensitive keys
   const attrKeys = providerConfig.interestingAttrs[resource.type] ?? [];
-  const displayAttrs = attrKeys
+  const allKeys = new Set(attrKeys);
+  for (const sk of resource.sensitiveKeys ?? []) {
+    if (resource.attributes[sk] !== undefined) allKeys.add(sk);
+  }
+  const displayAttrs = Array.from(allKeys)
     .filter((key) => resource.attributes[key] !== undefined && resource.attributes[key] !== null && resource.attributes[key] !== '')
     .map((key) => ({ key, value: resource.attributes[key] }));
 
@@ -112,12 +137,46 @@ export function NodeDetailPanel({ resource, edges, resources, providerConfig, on
         <div className="mb-4">
           <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-2">Attributes</p>
           <div className="space-y-1.5">
-            {displayAttrs.map(({ key, value }) => (
-              <div key={key} className="flex justify-between items-baseline gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-700/50 rounded">
-                <span className="text-xs text-slate-500 shrink-0">{formatAttrKey(key)}</span>
-                <span className="text-xs text-slate-700 dark:text-slate-200 font-medium text-right truncate">{formatAttrValue(value)}</span>
-              </div>
-            ))}
+            {displayAttrs.map(({ key, value }) => {
+              const isSensitive = sensitiveKeys.has(key);
+              const isRevealed = revealedKeys.has(key);
+              return (
+                <div key={key} className="flex justify-between items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-700/50 rounded">
+                  <span className="text-xs text-slate-500 shrink-0 flex items-center gap-1">
+                    {isSensitive && <LockIcon className="h-3 w-3 text-amber-500" />}
+                    {formatAttrKey(key)}
+                  </span>
+                  {isSensitive && !isRevealed ? (
+                    <button
+                      onClick={() => toggleReveal(key)}
+                      className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                      title="Click to reveal"
+                    >
+                      <span className="tracking-widest">{'••••••••'}</span>
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <span className="text-xs text-slate-700 dark:text-slate-200 font-medium text-right truncate">
+                      {formatAttrValue(value)}
+                      {isSensitive && isRevealed && (
+                        <button
+                          onClick={() => toggleReveal(key)}
+                          className="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 inline-flex"
+                          title="Hide value"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                          </svg>
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

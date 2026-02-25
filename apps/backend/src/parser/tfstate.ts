@@ -60,6 +60,9 @@ export function extractResources(tfstate: Tfstate, provider: ProviderConfig): {
       const tags = extractTags(attrs);
       const displayName = inferDisplayName(tfResource, attrs, tags);
 
+      // Extract sensitive attribute keys from state + common patterns
+      const sensitiveKeys = extractSensitiveKeys(instance.sensitive_attributes, attrs);
+
       resources.push({
         id,
         type: tfResource.type,
@@ -70,12 +73,19 @@ export function extractResources(tfstate: Tfstate, provider: ProviderConfig): {
         provider: provider.id,
         tags,
         region: provider.extractRegion(attrs),
+        ...(sensitiveKeys.length > 0 ? { sensitiveKeys } : {}),
       });
     }
   }
 
   return { resources, warnings };
 }
+
+// Common attribute keys that contain sensitive values
+const SENSITIVE_ATTR_PATTERNS = [
+  'password', 'secret', 'private_key', 'access_key', 'secret_key',
+  'token', 'api_key', 'auth', 'credential',
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -85,6 +95,33 @@ function extractTags(attrs: Record<string, unknown>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(raw as Record<string, unknown>).map(([k, v]) => [k, String(v)])
   );
+}
+
+/** Extract sensitive attribute keys from state metadata + common patterns */
+function extractSensitiveKeys(
+  sensitiveAttrs: unknown[][] | undefined,
+  attrs: Record<string, unknown>,
+): string[] {
+  const keys = new Set<string>();
+
+  // From Terraform state sensitive_attributes paths
+  if (sensitiveAttrs && Array.isArray(sensitiveAttrs)) {
+    for (const path of sensitiveAttrs) {
+      if (Array.isArray(path) && path.length > 0 && typeof path[0] === 'string') {
+        keys.add(path[0]);
+      }
+    }
+  }
+
+  // Fallback: detect common sensitive patterns in attribute key names
+  for (const key of Object.keys(attrs)) {
+    const lower = key.toLowerCase();
+    if (SENSITIVE_ATTR_PATTERNS.some((p) => lower.includes(p))) {
+      keys.add(key);
+    }
+  }
+
+  return Array.from(keys);
 }
 
 function inferDisplayName(

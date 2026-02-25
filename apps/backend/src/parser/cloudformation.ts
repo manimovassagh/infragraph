@@ -100,12 +100,28 @@ export function parseCfnTemplate(raw: string): CfnTemplate {
 
 // ─── Extract CloudResources from CFN template ────────────────────────────────
 
+// Attribute keys commonly containing sensitive values
+const SENSITIVE_ATTR_PATTERNS = [
+  'password', 'secret', 'private_key', 'access_key', 'secret_key',
+  'token', 'api_key', 'auth', 'credential',
+];
+
 export function extractResourcesFromCfn(
   template: CfnTemplate,
   provider: ProviderConfig,
 ): { resources: CloudResource[]; warnings: string[] } {
   const warnings: string[] = [];
   const resources: CloudResource[] = [];
+
+  // Collect NoEcho parameter names
+  const noEchoParams = new Set<string>();
+  if (template.Parameters) {
+    for (const [name, param] of Object.entries(template.Parameters)) {
+      if (typeof param === 'object' && param !== null && (param as Record<string, unknown>)['NoEcho'] === true) {
+        noEchoParams.add(name);
+      }
+    }
+  }
 
   // Build a lookup: logical ID → CFN type (for resolving Ref targets)
   const logicalIdToType = new Map<string, string>();
@@ -173,6 +189,24 @@ export function extractResourcesFromCfn(
     // Display name: Name tag → logical ID
     const displayName = tags['Name'] ?? logicalId;
 
+    // Detect sensitive keys: NoEcho parameter refs + common sensitive patterns
+    const sensitiveKeys: string[] = [];
+    for (const [cfnKey, cfnValue] of Object.entries(props)) {
+      const tfAttr = propMap[cfnKey] ?? camelToSnake(cfnKey);
+      // Check if the value references a NoEcho parameter
+      if (typeof cfnValue === 'object' && cfnValue !== null) {
+        const ref = (cfnValue as Record<string, unknown>)['Ref'];
+        if (typeof ref === 'string' && noEchoParams.has(ref)) {
+          sensitiveKeys.push(tfAttr);
+        }
+      }
+      // Check against common sensitive patterns
+      const lower = tfAttr.toLowerCase();
+      if (SENSITIVE_ATTR_PATTERNS.some((p) => lower.includes(p))) {
+        if (!sensitiveKeys.includes(tfAttr)) sensitiveKeys.push(tfAttr);
+      }
+    }
+
     resources.push({
       id: tfId,
       type: tfType,
@@ -183,6 +217,7 @@ export function extractResourcesFromCfn(
       provider: provider.id,
       tags,
       region: provider.extractRegion(attrs),
+      ...(sensitiveKeys.length > 0 ? { sensitiveKeys } : {}),
     });
   }
 
