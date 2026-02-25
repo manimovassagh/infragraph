@@ -1,4 +1,4 @@
-import { useRef, useMemo, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { useRef, useMemo, useImperativeHandle, forwardRef, useCallback, useState } from 'react';
 import { toPng } from 'html-to-image';
 import ReactFlow, {
   Background,
@@ -50,6 +50,7 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
   ref,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
   const exportPng = useCallback(async () => {
     const el = wrapperRef.current;
@@ -112,53 +113,85 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     return new Set(visibleNodes.filter((n) => nodeMatchesSearch(n, searchQuery)).map((n) => n.id));
   }, [visibleNodes, searchQuery]);
 
+  // Compute which nodes are connected to the hovered node (direct neighbors)
+  const hoverConnected = useMemo(() => {
+    if (!hoveredNodeId) return null;
+    const nodeIds = new Set<string>([hoveredNodeId]);
+    const edgeIds = new Set<string>();
+    for (const e of visibleEdges) {
+      if (e.source === hoveredNodeId || e.target === hoveredNodeId) {
+        edgeIds.add(e.id);
+        nodeIds.add(e.source);
+        nodeIds.add(e.target);
+      }
+    }
+    // Also keep parent containers (VPC/Subnet) of connected nodes visible
+    for (const n of visibleNodes) {
+      if (nodeIds.has(n.id) && n.parentNode) {
+        nodeIds.add(n.parentNode);
+        // grandparent (subnet → vpc)
+        const parent = visibleNodes.find((p) => p.id === n.parentNode);
+        if (parent?.parentNode) nodeIds.add(parent.parentNode);
+      }
+    }
+    return { nodeIds, edgeIds };
+  }, [hoveredNodeId, visibleEdges, visibleNodes]);
+
   const nodes = useMemo(() => {
     return visibleNodes.map((n) => {
-      const isDimmed = matchingNodeIds !== null && !matchingNodeIds.has(n.id);
+      const searchDimmed = matchingNodeIds !== null && !matchingNodeIds.has(n.id);
+      const hoverDimmed = hoverConnected !== null && !hoverConnected.nodeIds.has(n.id);
+      const isDimmed = searchDimmed || hoverDimmed;
       return {
         ...n,
         style: {
           ...n.style,
-          opacity: isDimmed ? 0.25 : 1,
+          opacity: isDimmed ? 0.2 : 1,
+          transition: 'opacity 0.2s ease',
         },
       } as Node<GraphNodeData>;
     });
-  }, [visibleNodes, matchingNodeIds]);
+  }, [visibleNodes, matchingNodeIds, hoverConnected]);
 
-  // Style edges with color-coding and selection highlighting
+  // Style edges with color-coding, selection highlighting, and hover highlighting
   const edges = useMemo(
     () =>
       visibleEdges.map((e) => {
-        const isConnected = selectedNodeId
+        const isSelected = selectedNodeId
           ? e.source === selectedNodeId || e.target === selectedNodeId
           : false;
-        const isDimmed = selectedNodeId !== null && !isConnected;
+        const isHovered = hoverConnected?.edgeIds.has(e.id) ?? false;
+        const isHighlighted = isSelected || isHovered;
+        const isDimmed = (selectedNodeId !== null && !isSelected) ||
+          (hoverConnected !== null && !isHovered);
         const edgeColor = providerConfig.edgeColors[e.label ?? ''] ?? '#94a3b8';
         const color = isDimmed ? '#e2e8f0' : edgeColor;
 
         return {
           ...e,
           type: 'smoothstep',
-          animated: isConnected,
+          animated: isHighlighted,
           style: {
             stroke: color,
-            strokeDasharray: isConnected ? undefined : '6 3',
-            strokeWidth: isConnected ? 2.5 : 1.5,
+            strokeDasharray: isHighlighted ? undefined : '6 3',
+            strokeWidth: isHighlighted ? 2.5 : 1.5,
+            transition: 'stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease',
+            opacity: isDimmed ? 0.15 : 1,
           },
           labelStyle: {
             fontSize: 10,
             fill: isDimmed ? '#cbd5e1' : '#475569',
-            fontWeight: isConnected ? 600 : 400,
+            fontWeight: isHighlighted ? 600 : 400,
           },
           labelBgStyle: {
-            fill: isConnected ? '#ffffff' : '#f8fafc',
-            fillOpacity: isConnected ? 1 : 0.9,
+            fill: isHighlighted ? '#ffffff' : '#f8fafc',
+            fillOpacity: isHighlighted ? 1 : 0.9,
           },
           labelBgPadding: [4, 2] as [number, number],
           labelBgBorderRadius: 3,
         };
       }),
-    [visibleEdges, selectedNodeId, providerConfig.edgeColors]
+    [visibleEdges, selectedNodeId, hoverConnected, providerConfig.edgeColors]
   ) as Edge[];
 
   return (
@@ -169,6 +202,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         nodeTypes={providerConfig.nodeTypes}
         onNodeClick={(_: React.MouseEvent, node: Node) => onNodeSelect(node.id)}
         onPaneClick={() => onNodeSelect(null)}
+        onNodeMouseEnter={(_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id)}
+        onNodeMouseLeave={() => setHoveredNodeId(null)}
         fitView
         minZoom={0.1}
         maxZoom={2}
