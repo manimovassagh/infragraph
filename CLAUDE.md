@@ -18,11 +18,14 @@
 
 ## Architecture
 
-- Multi-cloud: `providers/` directories in both backend and frontend
+- **Multi-IaC**: Supports Terraform (tfstate/HCL), CloudFormation (JSON/YAML), and CDK (via synthesized CFN)
+- **Multi-cloud**: `providers/` directories in both backend and frontend (AWS, Azure, GCP)
 - Backend parsers accept `ProviderConfig` — never hardcode provider-specific logic in parsers
+- CFN parser normalizes `AWS::EC2::VPC` → `aws_vpc` via type mapping, reusing the entire graph pipeline
 - Frontend uses `ProviderFrontendConfig` with lazy-loading for non-AWS providers
 - Container nesting (VPC/Subnet) is config-driven via `containerTypes` array
 - Keep node components **separate per cloud provider** for maintainability
+- `IacSource` type tracks which tool produced the parse result (shown in UI badge)
 
 ## Build & Test Commands
 

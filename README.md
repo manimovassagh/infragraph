@@ -1,6 +1,6 @@
 # InfraGraph
 
-Visualize your Terraform infrastructure as interactive architecture diagrams. Upload files, connect a GitHub repo, or call the REST API — InfraGraph auto-detects your cloud provider and renders a live, zoomable canvas with VPCs, subnets, and resources.
+Visualize your Infrastructure-as-Code as interactive architecture diagrams. Upload Terraform state files, HCL source, CloudFormation templates, or CDK-synthesized output — InfraGraph auto-detects your cloud provider and IaC tool, then renders a live, zoomable canvas with VPCs, subnets, and resources.
 
 ![InfraGraph Landing Page](docs/infragraph-landing.png)
 
@@ -10,11 +10,12 @@ Visualize your Terraform infrastructure as interactive architecture diagrams. Up
 
 ## Features
 
+- **Multi-IaC** — Supports Terraform (`.tfstate`, `.tf`), AWS CloudFormation (JSON/YAML), and AWS CDK (synthesized templates)
 - **Multi-cloud** — AWS (20+), Azure (12+), and GCP (11+) resource types with branded icons
-- **GitHub Integration** — Connect your GitHub account, browse repos (including private), scan for Terraform projects, and visualize directly
+- **GitHub Integration** — Connect your GitHub account, browse repos (including private), scan for IaC projects, and visualize directly
 - **REST API** — Full programmatic access for CI/CD pipelines, scripts, and custom integrations
 - **Session History** — Save and revisit past diagrams (requires Supabase auth)
-- Parse Terraform state files (`.tfstate`) and HCL source files (`.tf`)
+- Smart file detection — auto-detects IaC tool and cloud provider from file content
 - Auto-layout: VPC > Subnet > Resource hierarchy with nested containers
 - Interactive React Flow canvas with zoom, pan, minimap, and dark mode
 - Click any node to inspect attributes, tags, and connections
@@ -34,9 +35,9 @@ Visualize your Terraform infrastructure as interactive architecture diagrams. Up
 ```
 infragraph/
 ├── apps/
-│   ├── backend/           # Express API — parses tfstate/HCL, GitHub integration
+│   ├── backend/           # Express API — parses tfstate/HCL/CloudFormation, GitHub integration
 │   │   ├── src/
-│   │   │   ├── parser/    # tfstate, graph, and HCL parsers
+│   │   │   ├── parser/    # tfstate, HCL, CloudFormation, and graph parsers
 │   │   │   ├── providers/ # Cloud provider configs (aws, azure, gcp)
 │   │   │   ├── services/  # GitHub service (OAuth, repos, scan, fetch)
 │   │   │   ├── routes/    # API route handlers (parse, github, sessions, user)
@@ -53,8 +54,9 @@ infragraph/
 ├── e2e/                   # Playwright end-to-end tests
 ├── test/
 │   ├── fixtures/
-│   │   ├── projects/      # 11 .tf source test projects
-│   │   └── tfstate/       # 11 .tfstate test fixtures
+│   │   ├── projects/         # 11 .tf source test projects
+│   │   ├── tfstate/          # 11 .tfstate test fixtures
+│   │   └── cloudformation/   # 5 CloudFormation/CDK test templates
 │   └── screenshots/
 ├── docker-compose.yml
 └── Makefile
@@ -70,7 +72,7 @@ make up
 make install dev
 ```
 
-Open http://localhost:3000, select a cloud provider, and upload a `.tfstate` or `.tf` file — or click **Connect GitHub Repo** to browse your repositories.
+Open http://localhost:3000 and upload a `.tfstate`, `.tf`, or CloudFormation template (`.yaml`, `.json`) — or click **Connect GitHub Repo** to browse your repositories.
 
 ## Prerequisites
 
@@ -151,6 +153,8 @@ Interactive Swagger docs available at http://localhost:3001/docs when the backen
 | `POST` | `/api/parse` | Upload a `.tfstate` file (multipart form, field: `tfstate`) |
 | `POST` | `/api/parse/raw` | Send raw tfstate JSON: `{ "tfstate": "..." }` |
 | `POST` | `/api/parse/hcl` | Upload `.tf` files (multipart form, field: `files`) |
+| `POST` | `/api/parse/cfn` | Upload a CloudFormation template (multipart form, field: `template`) |
+| `POST` | `/api/parse/cfn/raw` | Send raw CFN template: `{ "template": "..." }` |
 
 ### GitHub Endpoints
 
@@ -176,10 +180,21 @@ All parse endpoints return:
   resources: CloudResource[];
   provider: CloudProvider;
   warnings: string[];
+  iacSource?: IacSource; // "terraform-state" | "terraform-hcl" | "cloudformation" | "cdk"
 }
 ```
 
 GitHub endpoints accept an optional `X-GitHub-Token` header for private repo access and higher rate limits (5,000 req/hr vs 60 req/hr).
+
+## Supported IaC Tools
+
+| Tool | Formats | Status |
+|------|---------|--------|
+| **Terraform** | `.tfstate` (state files), `.tf` (HCL source) | Supported |
+| **AWS CloudFormation** | `.json`, `.yaml`, `.yml`, `.template` | Supported |
+| **AWS CDK** | Synthesized CloudFormation templates (`cdk synth` output) | Supported |
+
+CloudFormation and CDK templates are automatically detected from file content — no manual selection needed.
 
 ## Supported Cloud Providers
 
@@ -265,6 +280,20 @@ curl -X POST http://localhost:3001/api/parse \
 curl -X POST http://localhost:3001/api/parse/raw \
   -H "Content-Type: application/json" \
   -d '{"tfstate": "<your-state-json>"}'
+```
+
+### Upload a CloudFormation Template
+
+```bash
+curl -X POST http://localhost:3001/api/parse/cfn \
+  -F "template=@my-stack.yaml"
+```
+
+For CDK-synthesized templates, add `?source=cdk` to tag the source:
+
+```bash
+curl -X POST http://localhost:3001/api/parse/cfn?source=cdk \
+  -F "template=@cdk.out/MyStack.template.json"
 ```
 
 All parse responses return graph data (nodes, edges, resources, provider) that can be rendered with React Flow or any graph library.
