@@ -418,11 +418,11 @@ export function HomePage() {
               <UserMenu />
               </div>
             </div>
-            {/* Provider badge — top-left below toolbar */}
+            {/* Provider badge — bottom-left floating */}
             {(() => {
               const meta = PROVIDER_META[state.provider] ?? { label: state.provider, color: '#6B7280' };
               return (
-                <div className="absolute top-16 left-3 z-10 flex items-center gap-3 rounded-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-4 py-2.5 shadow-lg">
+                <div className="absolute bottom-4 left-3 z-10 flex items-center gap-3 rounded-xl bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-4 py-2.5 shadow-lg">
                   <span
                     className="text-2xl font-bold tracking-tight"
                     style={{ color: meta.color }}
