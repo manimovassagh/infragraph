@@ -124,7 +124,7 @@ export function extractResourcesFromCfn(
 
   // First pass: process glue resources and collect their merge instructions
   const mergeOps: { targetLogicalId: string; attr: string; valueLogicalId: string }[] = [];
-  for (const [logicalId, cfnRes] of Object.entries(template.Resources)) {
+  for (const [, cfnRes] of Object.entries(template.Resources)) {
     const glue = cfnGlueResources[cfnRes.Type];
     if (!glue) continue;
 

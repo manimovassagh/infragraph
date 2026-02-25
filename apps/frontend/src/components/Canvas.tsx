@@ -10,6 +10,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import type { GraphNode, GraphEdge, GraphNodeData } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
+import { generateStandaloneHtml } from '@/lib/exportHtml';
 
 const defaultEdgeOptions = {
   animated: false,
@@ -24,6 +25,8 @@ interface CanvasProps {
   searchQuery: string;
   hiddenTypes?: Set<string>;
   providerConfig: ProviderFrontendConfig;
+  provider?: string;
+  fileName?: string;
   onNodeSelect: (nodeId: string | null) => void;
 }
 
@@ -43,10 +46,11 @@ function nodeMatchesSearch(node: GraphNode, query: string): boolean {
 
 export interface CanvasHandle {
   exportPng: () => Promise<void>;
+  exportHtml: () => void;
 }
 
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
-  { graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, providerConfig, onNodeSelect },
+  { graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, providerConfig, provider, fileName, onNodeSelect },
   ref,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -62,7 +66,21 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     link.click();
   }, []);
 
-  useImperativeHandle(ref, () => ({ exportPng }));
+  const exportHtml = useCallback(() => {
+    const dark = document.documentElement.classList.contains('dark');
+    const html = generateStandaloneHtml(
+      graphNodes, graphEdges, provider ?? 'aws', fileName ?? 'architecture', dark,
+    );
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `${(fileName ?? 'architecture').replace(/\.[^.]+$/, '')}.html`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [graphNodes, graphEdges, provider, fileName]);
+
+  useImperativeHandle(ref, () => ({ exportPng, exportHtml }));
 
   // Filter out hidden resource types, cascading to children of hidden parents
   const visibleNodes = useMemo(() => {
