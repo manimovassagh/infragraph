@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 type UploadState = 'idle' | 'dragging' | 'ready' | 'invalid';
 
 interface UploadProps {
-  onSubmit: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn') => void;
+  onSubmit: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk') => void;
 }
 
 const TFSTATE_EXTENSIONS = ['.tfstate'];
@@ -13,7 +13,7 @@ const AMBIGUOUS_EXTENSIONS = ['.json']; // Could be tfstate or CFN
 const ALL_EXTENSIONS = [...TFSTATE_EXTENSIONS, ...HCL_EXTENSIONS, ...CFN_EXTENSIONS, ...AMBIGUOUS_EXTENSIONS];
 const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 
-type DetectedMode = 'tfstate' | 'hcl' | 'cfn' | 'mixed' | 'unknown';
+type DetectedMode = 'tfstate' | 'hcl' | 'cfn' | 'cdk' | 'mixed' | 'unknown';
 
 function detectMode(files: File[]): { mode: DetectedMode; error?: string; needsContentCheck?: File } {
   let hasTfstate = false;
@@ -53,18 +53,23 @@ function detectMode(files: File[]): { mode: DetectedMode; error?: string; needsC
   return { mode: 'unknown', error: 'No supported files found.' };
 }
 
-/** Detect whether a .json file is a tfstate or CloudFormation template by reading its content. */
-async function detectJsonType(file: File): Promise<'tfstate' | 'cfn'> {
+/** Detect whether a .json file is a tfstate, CloudFormation template, or CDK output. */
+async function detectJsonType(file: File): Promise<'tfstate' | 'cfn' | 'cdk'> {
   const text = await file.text();
   try {
     const obj = JSON.parse(text);
     if (obj && typeof obj === 'object') {
-      // CloudFormation: has Resources with Type: "AWS::..."
+      // CloudFormation/CDK: has Resources with Type: "AWS::..."
       if (obj.AWSTemplateFormatVersion || obj.Resources) {
         const resources = obj.Resources;
         if (resources && typeof resources === 'object') {
           const firstValue = Object.values(resources)[0] as Record<string, unknown> | undefined;
           if (firstValue?.Type && typeof firstValue.Type === 'string' && firstValue.Type.startsWith('AWS::')) {
+            // CDK-synthesized templates have aws:cdk metadata
+            const metadata = obj.Metadata as Record<string, unknown> | undefined;
+            if (metadata?.['aws:cdk:version'] || metadata?.['aws:cdk:path-metadata']) {
+              return 'cdk';
+            }
             return 'cfn';
           }
         }
@@ -106,7 +111,7 @@ function filterSupported(files: File[]): File[] {
 export function Upload({ onSubmit }: UploadProps) {
   const [state, setState] = useState<UploadState>('idle');
   const [files, setFiles] = useState<File[]>([]);
-  const [detectedMode, setDetectedMode] = useState<'tfstate' | 'hcl' | 'cfn'>('tfstate');
+  const [detectedMode, setDetectedMode] = useState<'tfstate' | 'hcl' | 'cfn' | 'cdk'>('tfstate');
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -148,7 +153,7 @@ export function Upload({ onSubmit }: UploadProps) {
 
     setState('ready');
     setError(null);
-    setDetectedMode(mode as 'tfstate' | 'hcl' | 'cfn');
+    setDetectedMode(mode as 'tfstate' | 'hcl' | 'cfn' | 'cdk');
     setFiles(supported);
   }, []);
 
@@ -229,10 +234,10 @@ export function Upload({ onSubmit }: UploadProps) {
           <p className="text-slate-700 dark:text-slate-300 text-lg font-medium">
             {state === 'dragging'
               ? 'Drop your file(s) here'
-              : 'Drop .tfstate, .tf, or CloudFormation templates here'}
+              : 'Drop Terraform, CloudFormation, or CDK files here'}
           </p>
           <p className="text-slate-400 dark:text-slate-500 text-base">
-            Click to browse — or drag files and folders
+            .tfstate, .tf, .yaml, .json, .template
           </p>
         </>
       ) : state === 'ready' && files.length > 0 ? (
@@ -252,7 +257,7 @@ export function Upload({ onSubmit }: UploadProps) {
               </>
             )}
             <p className="text-xs mt-1.5 text-slate-400 dark:text-slate-500">
-              Detected: <span className="font-mono">{detectedMode === 'tfstate' ? '.tfstate' : detectedMode === 'hcl' ? '.tf' : 'CloudFormation'}</span>
+              Detected: <span className="font-mono">{detectedMode === 'tfstate' ? '.tfstate' : detectedMode === 'hcl' ? '.tf' : detectedMode === 'cdk' ? 'AWS CDK' : 'CloudFormation'}</span>
             </p>
           </div>
           <div className="flex gap-3" onClick={(e) => e.stopPropagation()}>

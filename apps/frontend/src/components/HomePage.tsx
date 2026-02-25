@@ -116,7 +116,7 @@ export function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showShortcuts]);
 
-  async function handleSmartUpload(files: File[], mode: 'tfstate' | 'hcl' | 'cfn') {
+  async function handleSmartUpload(files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk') {
     const fileName = files.length === 1
       ? files[0]!.name
       : `${files.length} ${mode === 'hcl' ? '.tf' : ''} files`;
@@ -127,6 +127,8 @@ export function HomePage() {
         data = await parseFile(files[0]!);
       } else if (mode === 'hcl') {
         data = await parseHcl(files);
+      } else if (mode === 'cdk') {
+        data = await parseCfn(files[0]!, 'cdk');
       } else {
         data = await parseCfn(files[0]!);
       }
@@ -269,7 +271,10 @@ export function HomePage() {
         try {
           const obj = JSON.parse(text);
           if (obj?.AWSTemplateFormatVersion || (obj?.Resources && typeof obj.Resources === 'object')) {
-            handleSmartUpload([fileList[0]!], 'cfn');
+            // Detect CDK via metadata
+            const metadata = obj?.Metadata as Record<string, unknown> | undefined;
+            const isCdk = metadata?.['aws:cdk:version'] || metadata?.['aws:cdk:path-metadata'];
+            handleSmartUpload([fileList[0]!], isCdk ? 'cdk' : 'cfn');
           } else {
             handleSmartUpload([fileList[0]!], 'tfstate');
           }

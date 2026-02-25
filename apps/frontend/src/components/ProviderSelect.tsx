@@ -15,7 +15,7 @@ const samples: { id: CloudProvider; label: string; color: string; count: string 
 ];
 
 interface ProviderSelectProps {
-  onUpload: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn') => void;
+  onUpload: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk') => void;
   onTrySample: (provider: CloudProvider) => void;
   onGitHubParsed: (data: ParseResponse, fileName: string) => void;
 }
@@ -89,7 +89,7 @@ export function ProviderSelect({ onUpload, onTrySample, onGitHubParsed }: Provid
               InfraGraph
             </h1>
             <p className="mt-5 text-2xl font-medium text-slate-600 dark:text-slate-300">
-              IaC to architecture diagrams, instantly.
+              Terraform, CloudFormation & CDK to diagrams, instantly.
             </p>
 
             {/* Provider pills */}
