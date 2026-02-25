@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { parseTfstate } from '../parser/tfstate.js';
 import { buildGraph, buildGraphFromResources } from '../parser/graph.js';
 import { extractResourcesFromHcl } from '../parser/hcl.js';
+import { parseCfnTemplate, extractResourcesFromCfn } from '../parser/cloudformation.js';
 import { detectProvider, detectProviderFromTypes, getProvider } from '../providers/index.js';
 import type { CloudProvider, ParseResponse, ApiError } from '@infragraph/shared';
 
@@ -47,7 +48,7 @@ parseRouter.post('/parse', upload.single('tfstate'), (req, res) => {
     const provider = override ? getProvider(override) : detectProvider(tfstate);
 
     const result = buildGraph(tfstate, provider);
-    const response: ParseResponse = result;
+    const response: ParseResponse = { ...result, iacSource: 'terraform-state' };
     res.json(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -73,7 +74,7 @@ parseRouter.post('/parse/raw', (req, res) => {
     const provider = override ? getProvider(override) : detectProvider(tfstate);
 
     const parseResult = buildGraph(tfstate, provider);
-    const response: ParseResponse = parseResult;
+    const response: ParseResponse = { ...parseResult, iacSource: 'terraform-state' };
     res.json(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
@@ -127,11 +128,81 @@ parseRouter.post('/parse/hcl', hclUpload.array('files', 50), async (req, res) =>
 
     const { resources, warnings } = await extractResourcesFromHcl(fileMap, provider);
     const graphResult = buildGraphFromResources(resources, warnings, provider);
-    const response: ParseResponse = graphResult;
+    const response: ParseResponse = { ...graphResult, iacSource: 'terraform-hcl' };
     res.json(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     const apiErr: ApiError = { error: 'Failed to parse HCL', details: message };
+    res.status(422).json(apiErr);
+  }
+});
+
+// ─── CloudFormation upload ───────────────────────────────────────────────────
+
+const cfnUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    const name = file.originalname.toLowerCase();
+    if (name.endsWith('.json') || name.endsWith('.yaml') || name.endsWith('.yml') || name.endsWith('.template')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .json, .yaml, .yml, or .template files are accepted'));
+    }
+  },
+});
+
+// POST /api/parse/cfn — CloudFormation template file upload
+parseRouter.post('/parse/cfn', cfnUpload.single('template'), (req, res) => {
+  try {
+    if (!req.file) {
+      const err: ApiError = { error: 'No file uploaded', details: 'Attach a CloudFormation template as form field "template"' };
+      res.status(400).json(err);
+      return;
+    }
+
+    const raw = req.file.buffer.toString('utf-8');
+    const template = parseCfnTemplate(raw);
+
+    // CloudFormation currently only targets AWS
+    const provider = getProvider('aws');
+    const { resources, warnings } = extractResourcesFromCfn(template, provider);
+    const graphResult = buildGraphFromResources(resources, warnings, provider);
+
+    // Support ?source=cdk to mark as CDK origin
+    const iacSource = req.query['source'] === 'cdk' ? 'cdk' as const : 'cloudformation' as const;
+    const response: ParseResponse = { ...graphResult, iacSource };
+    res.json(response);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const apiErr: ApiError = { error: 'Failed to parse CloudFormation template', details: message };
+    res.status(422).json(apiErr);
+  }
+});
+
+// POST /api/parse/cfn/raw — JSON body { template: "..." }
+const CfnRawSchema = z.object({ template: z.string().min(1) });
+
+parseRouter.post('/parse/cfn/raw', (req, res) => {
+  const result = CfnRawSchema.safeParse(req.body);
+  if (!result.success) {
+    const err: ApiError = { error: 'Invalid request body', details: result.error.message };
+    res.status(400).json(err);
+    return;
+  }
+
+  try {
+    const template = parseCfnTemplate(result.data.template);
+    const provider = getProvider('aws');
+    const { resources, warnings } = extractResourcesFromCfn(template, provider);
+    const graphResult = buildGraphFromResources(resources, warnings, provider);
+
+    const iacSource = req.query['source'] === 'cdk' ? 'cdk' as const : 'cloudformation' as const;
+    const response: ParseResponse = { ...graphResult, iacSource };
+    res.json(response);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const apiErr: ApiError = { error: 'Failed to parse CloudFormation template', details: message };
     res.status(422).json(apiErr);
   }
 });
