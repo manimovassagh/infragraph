@@ -8,9 +8,18 @@ import ReactFlow, {
   type Edge,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import type { GraphNode, GraphEdge, GraphNodeData } from '@infragraph/shared';
+import type { GraphNode, GraphEdge, GraphNodeData, PlanAction } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { generateStandaloneHtml } from '@/lib/exportHtml';
+
+const PLAN_ACTION_COLORS: Record<PlanAction, string | undefined> = {
+  create: '#22c55e',   // green-500
+  update: '#3b82f6',   // blue-500
+  delete: '#ef4444',   // red-500
+  replace: '#f59e0b',  // amber-500
+  'no-op': undefined,
+  read: '#8b5cf6',     // violet-500
+};
 
 const defaultEdgeOptions = {
   animated: false,
@@ -160,12 +169,15 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
       const searchDimmed = matchingNodeIds !== null && !matchingNodeIds.has(n.id);
       const hoverDimmed = hoverConnected !== null && !hoverConnected.nodeIds.has(n.id);
       const isDimmed = searchDimmed || hoverDimmed;
+      const planAction = n.data.planAction;
+      const planColor = planAction ? PLAN_ACTION_COLORS[planAction] : undefined;
       return {
         ...n,
         style: {
           ...n.style,
           opacity: isDimmed ? 0.2 : 1,
-          transition: 'opacity 0.2s ease',
+          transition: 'opacity 0.2s ease, outline-color 0.2s ease',
+          ...(planColor ? { outline: `3px solid ${planColor}`, outlineOffset: '2px', borderRadius: 8 } : {}),
         },
       } as Node<GraphNodeData>;
     });
@@ -212,6 +224,18 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     [visibleEdges, selectedNodeId, hoverConnected, providerConfig.edgeColors]
   ) as Edge[];
 
+  // Determine if plan actions exist for showing the legend
+  const planActionCounts = useMemo(() => {
+    const counts = new Map<PlanAction, number>();
+    for (const n of graphNodes) {
+      const action = n.data.planAction;
+      if (action) counts.set(action, (counts.get(action) ?? 0) + 1);
+    }
+    return counts;
+  }, [graphNodes]);
+
+  const showPlanLegend = planActionCounts.size > 0;
+
   return (
     <div ref={wrapperRef} className="w-full h-full">
       <ReactFlow
@@ -234,6 +258,42 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
           maskColor="rgba(248, 250, 252, 0.7)"
         />
       </ReactFlow>
+      {showPlanLegend && (
+        <div className="absolute bottom-4 right-4 z-10 rounded-lg bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-2.5 shadow-lg">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">Plan Changes</p>
+          <div className="flex flex-col gap-1">
+            {((['create', 'update', 'delete', 'replace', 'no-op', 'read'] as PlanAction[])
+              .filter((a) => planActionCounts.has(a))
+              .map((action) => {
+                const color = PLAN_ACTION_COLORS[action];
+                const count = planActionCounts.get(action)!;
+                const labels: Record<PlanAction, string> = {
+                  create: 'Create',
+                  update: 'Update',
+                  delete: 'Destroy',
+                  replace: 'Replace',
+                  'no-op': 'Unchanged',
+                  read: 'Read',
+                };
+                return (
+                  <div key={action} className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                    <span
+                      className="inline-block w-3 h-3 rounded-sm border"
+                      style={{
+                        backgroundColor: color ? `${color}20` : '#f1f5f9',
+                        borderColor: color ?? '#cbd5e1',
+                        borderWidth: 2,
+                      }}
+                    />
+                    <span>{labels[action]}</span>
+                    <span className="text-slate-400 dark:text-slate-500 ml-auto tabular-nums">{count}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

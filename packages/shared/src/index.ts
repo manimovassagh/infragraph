@@ -5,7 +5,12 @@ export type CloudProvider = 'aws' | 'azure' | 'gcp';
 // ─── IaC Source ──────────────────────────────────────────────────────────────
 
 /** Which Infrastructure-as-Code tool produced the parse input */
-export type IacSource = 'terraform-state' | 'terraform-hcl' | 'cloudformation' | 'cdk';
+export type IacSource = 'terraform-state' | 'terraform-hcl' | 'cloudformation' | 'cdk' | 'terraform-plan';
+
+// ─── Plan Action ────────────────────────────────────────────────────────────
+
+/** Terraform plan change action for a resource */
+export type PlanAction = 'create' | 'update' | 'delete' | 'replace' | 'no-op' | 'read';
 
 // ─── AWS Resource Types ───────────────────────────────────────────────────────
 
@@ -90,6 +95,8 @@ export interface GraphNodeData {
   label: string;
   /** IDs of child nodes (for VPC → subnet → resource grouping) */
   children?: string[];
+  /** Terraform plan change action (only present for plan visualization) */
+  planAction?: PlanAction;
 }
 
 export interface GraphNode {

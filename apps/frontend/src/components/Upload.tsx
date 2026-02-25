@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 type UploadState = 'idle' | 'dragging' | 'ready' | 'invalid';
 
 interface UploadProps {
-  onSubmit: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk') => void;
+  onSubmit: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk' | 'plan') => void;
 }
 
 const TFSTATE_EXTENSIONS = ['.tfstate'];

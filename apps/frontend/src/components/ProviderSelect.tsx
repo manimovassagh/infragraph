@@ -15,13 +15,14 @@ const samples: { id: CloudProvider; label: string; color: string; count: string 
 ];
 
 interface ProviderSelectProps {
-  onUpload: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk') => void;
+  onUpload: (files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk' | 'plan') => void;
   onTrySample: (provider: CloudProvider) => void;
   onTryCfnSample: () => void;
+  onTryPlanSample: () => void;
   onGitHubParsed: (data: ParseResponse, fileName: string) => void;
 }
 
-export function ProviderSelect({ onUpload, onTrySample, onTryCfnSample, onGitHubParsed }: ProviderSelectProps) {
+export function ProviderSelect({ onUpload, onTrySample, onTryCfnSample, onTryPlanSample, onGitHubParsed }: ProviderSelectProps) {
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains('dark'),
   );
@@ -127,13 +128,13 @@ export function ProviderSelect({ onUpload, onTrySample, onTryCfnSample, onGitHub
             </button>
 
             {/* Sample pill buttons */}
-            <div className="flex flex-wrap items-center gap-3 mt-6">
-              <span className="text-base text-slate-400 dark:text-slate-500">Try a sample:</span>
+            <div className="flex flex-wrap items-center gap-2 mt-6">
+              <span className="text-sm text-slate-400 dark:text-slate-500">Try a sample:</span>
               {samples.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => onTrySample(s.id)}
-                  className="px-4 py-1.5 text-base font-semibold rounded-full text-white transition-opacity hover:opacity-80"
+                  className="px-3 py-1 text-sm font-semibold rounded-full text-white transition-opacity hover:opacity-80"
                   style={{ backgroundColor: s.color }}
                 >
                   {s.label}
@@ -141,10 +142,17 @@ export function ProviderSelect({ onUpload, onTrySample, onTryCfnSample, onGitHub
               ))}
               <button
                 onClick={onTryCfnSample}
-                className="px-4 py-1.5 text-base font-semibold rounded-full text-white transition-opacity hover:opacity-80"
+                className="px-3 py-1 text-sm font-semibold rounded-full text-white transition-opacity hover:opacity-80"
                 style={{ backgroundColor: '#E7157B' }}
               >
                 CloudFormation
+              </button>
+              <button
+                onClick={onTryPlanSample}
+                className="px-3 py-1 text-sm font-semibold rounded-full text-white transition-opacity hover:opacity-80"
+                style={{ backgroundColor: '#7B42F6' }}
+              >
+                TF Plan
               </button>
             </div>
           </div>

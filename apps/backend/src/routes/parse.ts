@@ -5,8 +5,9 @@ import { parseTfstate } from '../parser/tfstate.js';
 import { buildGraph, buildGraphFromResources } from '../parser/graph.js';
 import { extractResourcesFromHcl } from '../parser/hcl.js';
 import { parseCfnTemplate, extractResourcesFromCfn } from '../parser/cloudformation.js';
+import { extractResourcesFromPlan, type TerraformPlan } from '../parser/plan.js';
 import { detectProvider, detectProviderFromTypes, getProvider } from '../providers/index.js';
-import type { CloudProvider, ParseResponse, ApiError } from '@infragraph/shared';
+import type { CloudProvider, ParseResponse, ApiError, PlanAction } from '@infragraph/shared';
 
 export const parseRouter = Router();
 
@@ -203,6 +204,102 @@ parseRouter.post('/parse/cfn/raw', (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     const apiErr: ApiError = { error: 'Failed to parse CloudFormation template', details: message };
+    res.status(422).json(apiErr);
+  }
+});
+
+// ─── Terraform Plan ─────────────────────────────────────────────────────────
+
+/** Inject planAction into each graph node's data from the actions map */
+function injectPlanActions(response: ParseResponse, actions: Map<string, PlanAction>): ParseResponse {
+  return {
+    ...response,
+    nodes: response.nodes.map((n) => ({
+      ...n,
+      data: { ...n.data, planAction: actions.get(n.id) },
+    })),
+  };
+}
+
+const planUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter: (_req, file, cb) => {
+    if (file.originalname.endsWith('.json') || file.mimetype === 'application/json') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JSON plan files are accepted'));
+    }
+  },
+});
+
+// POST /api/parse/plan — Terraform plan JSON file upload
+parseRouter.post('/parse/plan', planUpload.single('plan'), (req, res) => {
+  try {
+    if (!req.file) {
+      const err: ApiError = { error: 'No file uploaded', details: 'Attach a Terraform plan JSON as form field "plan"' };
+      res.status(400).json(err);
+      return;
+    }
+
+    const raw = req.file.buffer.toString('utf-8');
+    const plan: TerraformPlan = JSON.parse(raw);
+
+    if (!plan.resource_changes || !Array.isArray(plan.resource_changes)) {
+      const err: ApiError = { error: 'Invalid plan format', details: 'Missing resource_changes array. Run: terraform show -json tfplan > plan.json' };
+      res.status(400).json(err);
+      return;
+    }
+
+    // Auto-detect provider from resource types in the plan
+    const types = plan.resource_changes.map((rc) => rc.type);
+    const override = resolveProviderParam(req.query['provider']);
+    const provider = override ? getProvider(override) : detectProviderFromTypes(types);
+
+    const { resources, actions, warnings } = extractResourcesFromPlan(plan, provider);
+    const graphResult = buildGraphFromResources(resources, warnings, provider);
+    const withActions = injectPlanActions(graphResult, actions);
+    const response: ParseResponse = { ...withActions, iacSource: 'terraform-plan' };
+    res.json(response);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const apiErr: ApiError = { error: 'Failed to parse Terraform plan', details: message };
+    res.status(422).json(apiErr);
+  }
+});
+
+// POST /api/parse/plan/raw — JSON body { plan: "..." }
+const PlanRawSchema = z.object({ plan: z.string().min(1) });
+
+parseRouter.post('/parse/plan/raw', (req, res) => {
+  const result = PlanRawSchema.safeParse(req.body);
+  if (!result.success) {
+    const err: ApiError = { error: 'Invalid request body', details: result.error.message };
+    res.status(400).json(err);
+    return;
+  }
+
+  try {
+    const plan: TerraformPlan = JSON.parse(result.data.plan);
+
+    if (!plan.resource_changes || !Array.isArray(plan.resource_changes)) {
+      const err: ApiError = { error: 'Invalid plan format', details: 'Missing resource_changes array' };
+      res.status(400).json(err);
+      return;
+    }
+
+    const types = plan.resource_changes.map((rc) => rc.type);
+    const override = resolveProviderParam(req.query['provider']);
+    const provider = override ? getProvider(override) : detectProviderFromTypes(types);
+
+    const { resources, actions, warnings } = extractResourcesFromPlan(plan, provider);
+    const graphResult = buildGraphFromResources(resources, warnings, provider);
+    const withActions = injectPlanActions(graphResult, actions);
+    const response: ParseResponse = { ...withActions, iacSource: 'terraform-plan' };
+    res.json(response);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const apiErr: ApiError = { error: 'Failed to parse Terraform plan', details: message };
     res.status(422).json(apiErr);
   }
 });

@@ -9,7 +9,7 @@ import { Canvas, type CanvasHandle } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { ResourceSummary } from '@/components/ResourceSummary';
 import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
-import { parseFile, parseHcl, parseCfn, saveSession } from '@/lib/api';
+import { parseFile, parseHcl, parseCfn, parsePlan, saveSession } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { UserMenu } from '@/components/UserMenu';
 
@@ -22,6 +22,7 @@ const PROVIDER_META: Record<string, { label: string; color: string }> = {
 const IAC_SOURCE_LABELS: Record<string, string> = {
   'terraform-state': 'Terraform State',
   'terraform-hcl': 'Terraform HCL',
+  'terraform-plan': 'Terraform Plan',
   'cloudformation': 'CloudFormation',
   'cdk': 'AWS CDK',
 };
@@ -117,7 +118,7 @@ export function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showShortcuts]);
 
-  async function handleSmartUpload(files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk') {
+  async function handleSmartUpload(files: File[], mode: 'tfstate' | 'hcl' | 'cfn' | 'cdk' | 'plan') {
     const fileName = files.length === 1
       ? files[0]!.name
       : `${files.length} ${mode === 'hcl' ? '.tf' : ''} files`;
@@ -130,6 +131,8 @@ export function HomePage() {
         data = await parseHcl(files);
       } else if (mode === 'cdk') {
         data = await parseCfn(files[0]!, 'cdk');
+      } else if (mode === 'plan') {
+        data = await parsePlan(files[0]!);
       } else {
         data = await parseCfn(files[0]!);
       }
@@ -245,6 +248,42 @@ export function HomePage() {
     }
   }
 
+  async function handleTryPlanSample() {
+    const sampleName = 'plan-sample.json';
+    setState({ view: 'loading', fileName: sampleName });
+    try {
+      const res = await fetch('/plan-sample.json');
+      const text = await res.text();
+      const blob = new Blob([text], { type: 'application/json' });
+      const file = new File([blob], sampleName);
+      const data = await parsePlan(file);
+      if (data.resources.length === 0) {
+        setState({ view: 'error', message: 'No resources found in sample plan.', fileName: sampleName });
+        return;
+      }
+      const config = await getProviderFrontendConfig(data.provider);
+      setProviderConfig(config);
+      const iacLabel = data.iacSource ? IAC_SOURCE_LABELS[data.iacSource] : undefined;
+      setState({ view: 'canvas', provider: data.provider, data, selectedNodeId: null, fileName: sampleName, iacLabel });
+      navigate('/canvas');
+
+      if (user) {
+        void saveSession({
+          provider: data.provider,
+          fileName: sampleName,
+          resourceCount: data.resources.length,
+          data,
+        }).catch(() => {});
+      }
+    } catch (err) {
+      setState({
+        view: 'error',
+        message: err instanceof Error ? err.message : 'Failed to load sample',
+        fileName: sampleName,
+      });
+    }
+  }
+
   async function handleGitHubParsed(data: ParseResponse, fileName: string) {
     if (data.resources.length === 0) {
       setState({
@@ -307,7 +346,10 @@ export function HomePage() {
       void fileList[0].text().then((text) => {
         try {
           const obj = JSON.parse(text);
-          if (obj?.AWSTemplateFormatVersion || (obj?.Resources && typeof obj.Resources === 'object')) {
+          if (obj?.resource_changes && Array.isArray(obj.resource_changes)) {
+            // Terraform plan JSON
+            handleSmartUpload([fileList[0]!], 'plan');
+          } else if (obj?.AWSTemplateFormatVersion || (obj?.Resources && typeof obj.Resources === 'object')) {
             // Detect CDK via metadata
             const metadata = obj?.Metadata as Record<string, unknown> | undefined;
             const isCdk = metadata?.['aws:cdk:version'] || metadata?.['aws:cdk:path-metadata'];
@@ -336,6 +378,7 @@ export function HomePage() {
         onUpload={handleSmartUpload}
         onTrySample={handleTrySample}
         onTryCfnSample={handleTryCfnSample}
+        onTryPlanSample={handleTryPlanSample}
         onGitHubParsed={handleGitHubParsed}
       />
     );
