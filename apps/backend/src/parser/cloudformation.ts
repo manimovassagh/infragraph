@@ -2,6 +2,43 @@ import yaml from 'js-yaml';
 import type { CloudResource, ProviderConfig } from '@infragraph/shared';
 import { cfnTypeMap, cfnPropertyMap, cfnGlueResources } from './cfn-type-mapping.js';
 
+// ─── CloudFormation YAML Schema ──────────────────────────────────────────────
+// CFN YAML uses custom tags like !Ref, !GetAtt, !Sub, etc. We define a schema
+// that converts these to their JSON-equivalent intrinsic function objects.
+
+const cfnTags = [
+  new yaml.Type('!Ref', { kind: 'scalar', construct: (data) => ({ Ref: data }) }),
+  new yaml.Type('!GetAtt', {
+    kind: 'scalar',
+    construct: (data: string) => {
+      const [logicalId, ...rest] = data.split('.');
+      return { 'Fn::GetAtt': [logicalId, rest.join('.')] };
+    },
+  }),
+  new yaml.Type('!GetAtt', {
+    kind: 'sequence',
+    construct: (data) => ({ 'Fn::GetAtt': data }),
+  }),
+  new yaml.Type('!Sub', { kind: 'scalar', construct: (data) => ({ 'Fn::Sub': data }) }),
+  new yaml.Type('!Sub', { kind: 'sequence', construct: (data) => ({ 'Fn::Sub': data }) }),
+  new yaml.Type('!Join', { kind: 'sequence', construct: (data) => ({ 'Fn::Join': data }) }),
+  new yaml.Type('!Select', { kind: 'sequence', construct: (data) => ({ 'Fn::Select': data }) }),
+  new yaml.Type('!Split', { kind: 'sequence', construct: (data) => ({ 'Fn::Split': data }) }),
+  new yaml.Type('!If', { kind: 'sequence', construct: (data) => ({ 'Fn::If': data }) }),
+  new yaml.Type('!Equals', { kind: 'sequence', construct: (data) => ({ 'Fn::Equals': data }) }),
+  new yaml.Type('!And', { kind: 'sequence', construct: (data) => ({ 'Fn::And': data }) }),
+  new yaml.Type('!Or', { kind: 'sequence', construct: (data) => ({ 'Fn::Or': data }) }),
+  new yaml.Type('!Not', { kind: 'sequence', construct: (data) => ({ 'Fn::Not': data }) }),
+  new yaml.Type('!FindInMap', { kind: 'sequence', construct: (data) => ({ 'Fn::FindInMap': data }) }),
+  new yaml.Type('!Base64', { kind: 'scalar', construct: (data) => ({ 'Fn::Base64': data }) }),
+  new yaml.Type('!Cidr', { kind: 'sequence', construct: (data) => ({ 'Fn::Cidr': data }) }),
+  new yaml.Type('!ImportValue', { kind: 'scalar', construct: (data) => ({ 'Fn::ImportValue': data }) }),
+  new yaml.Type('!GetAZs', { kind: 'scalar', construct: (data) => ({ 'Fn::GetAZs': data || '' }) }),
+  new yaml.Type('!Condition', { kind: 'scalar', construct: (data) => ({ Condition: data }) }),
+];
+
+const CFN_SCHEMA = yaml.DEFAULT_SCHEMA.extend(cfnTags);
+
 // ─── CloudFormation Template Shape ───────────────────────────────────────────
 
 export interface CfnTemplate {
@@ -40,7 +77,7 @@ export function parseCfnTemplate(raw: string): CfnTemplate {
     parsed = JSON.parse(raw);
   } catch {
     try {
-      parsed = yaml.load(raw);
+      parsed = yaml.load(raw, { schema: CFN_SCHEMA });
     } catch (yamlErr) {
       throw new Error(
         `Template is not valid JSON or YAML: ${yamlErr instanceof Error ? yamlErr.message : String(yamlErr)}`,

@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Serverless API with Lambda, API Gateway, SQS, SNS, and S3
+
+Resources:
+  ApiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: api-handler
+      Runtime: nodejs20.x
+      Handler: index.handler
+      MemorySize: 256
+      Timeout: 30
+      Tags:
+        - Key: Name
+          Value: api-handler
+
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: my-api
+      Description: Main REST API
+
+  RequestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: request-queue
+      VisibilityTimeout: 60
+      Tags:
+        - Key: Name
+          Value: request-queue
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: notifications
+      Tags:
+        - Key: Name
+          Value: notifications
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: serverless-data-bucket
+      Tags:
+        - Key: Name
+          Value: data-bucket
+
+  ProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: queue-processor
+      Runtime: python3.12
+      Handler: handler.process
+      MemorySize: 512
+      Timeout: 120
+      Tags:
+        - Key: Name
+          Value: queue-processor
+
+  CDNDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - DomainName: !GetAtt DataBucket.DomainName
+            Id: S3Origin
+      Tags:
+        - Key: Name
+          Value: cdn

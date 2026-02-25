@@ -1,0 +1,150 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CDK-synthesized web application stack (simulates cdk synth output)",
+  "Metadata": {
+    "aws:cdk:version": "2.170.0"
+  },
+  "Resources": {
+    "WebAppVpcF01234AB": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "EnableDnsSupport": true,
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebAppVpc" }
+        ]
+      }
+    },
+    "WebAppVpcPublicSubnet1SubnetA1B2C3D4": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "WebAppVpcF01234AB" },
+        "CidrBlock": "10.0.0.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebAppVpc/PublicSubnet1" },
+          { "Key": "aws-cdk:subnet-type", "Value": "Public" }
+        ]
+      }
+    },
+    "WebAppVpcPrivateSubnet1SubnetE5F6G7H8": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "WebAppVpcF01234AB" },
+        "CidrBlock": "10.0.1.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebAppVpc/PrivateSubnet1" },
+          { "Key": "aws-cdk:subnet-type", "Value": "Private" }
+        ]
+      }
+    },
+    "WebAppVpcIGWI9J0K1L2": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebAppVpc/IGW" }
+        ]
+      }
+    },
+    "WebAppVpcVPCGWM3N4O5P6": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": { "Ref": "WebAppVpcF01234AB" },
+        "InternetGatewayId": { "Ref": "WebAppVpcIGWI9J0K1L2" }
+      }
+    },
+    "WebAppSecurityGroupQ7R8S9T0": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "CdkStack/WebApp/SecurityGroup",
+        "VpcId": { "Ref": "WebAppVpcF01234AB" },
+        "SecurityGroupIngress": [
+          { "IpProtocol": "tcp", "FromPort": 443, "ToPort": 443, "CidrIp": "0.0.0.0/0" }
+        ],
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebApp/SecurityGroup" }
+        ]
+      }
+    },
+    "WebAppLBU1V2W3X4": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "Subnets": [
+          { "Ref": "WebAppVpcPublicSubnet1SubnetA1B2C3D4" }
+        ],
+        "SecurityGroups": [
+          { "Ref": "WebAppSecurityGroupQ7R8S9T0" }
+        ],
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebApp/LB" }
+        ]
+      }
+    },
+    "WebAppTargetGroupY5Z6A7B8": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Port": 80,
+        "Protocol": "HTTP",
+        "VpcId": { "Ref": "WebAppVpcF01234AB" },
+        "TargetType": "ip",
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/WebApp/TargetGroup" }
+        ]
+      }
+    },
+    "WebAppListenerC9D0E1F2": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "LoadBalancerArn": { "Ref": "WebAppLBU1V2W3X4" },
+        "Port": 443,
+        "Protocol": "HTTPS",
+        "DefaultActions": [
+          { "Type": "forward", "TargetGroupArn": { "Ref": "WebAppTargetGroupY5Z6A7B8" } }
+        ]
+      }
+    },
+    "ApiHandlerG3H4I5J6": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "CdkStack-ApiHandler",
+        "Runtime": "nodejs20.x",
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Timeout": 10,
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/ApiHandler" }
+        ]
+      }
+    },
+    "DataBucketK7L8M9N0": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "cdkstack-databucket",
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/DataBucket" }
+        ]
+      }
+    },
+    "AppDatabaseO1P2Q3R4": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "Engine": "postgres",
+        "EngineVersion": "15.4",
+        "DBInstanceClass": "db.t3.micro",
+        "AllocatedStorage": 20,
+        "MultiAZ": false,
+        "MasterUsername": "postgres",
+        "MasterUserPassword": "changeme",
+        "VPCSecurityGroups": [{ "Ref": "WebAppSecurityGroupQ7R8S9T0" }],
+        "Tags": [
+          { "Key": "Name", "Value": "CdkStack/AppDatabase" }
+        ]
+      }
+    }
+  }
+}

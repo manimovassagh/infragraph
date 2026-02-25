@@ -1,0 +1,172 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "ECS Fargate cluster with ALB, VPC, and supporting infrastructure",
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/16",
+        "EnableDnsHostnames": true,
+        "Tags": [{ "Key": "Name", "Value": "ecs-vpc" }]
+      }
+    },
+    "PublicSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": "10.0.1.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [{ "Key": "Name", "Value": "public-a" }]
+      }
+    },
+    "PublicSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": "10.0.2.0/24",
+        "AvailabilityZone": "us-east-1b",
+        "MapPublicIpOnLaunch": true,
+        "Tags": [{ "Key": "Name", "Value": "public-b" }]
+      }
+    },
+    "PrivateSubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": "10.0.10.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "Tags": [{ "Key": "Name", "Value": "private-a" }]
+      }
+    },
+    "PrivateSubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "CidrBlock": "10.0.11.0/24",
+        "AvailabilityZone": "us-east-1b",
+        "Tags": [{ "Key": "Name", "Value": "private-b" }]
+      }
+    },
+    "InternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [{ "Key": "Name", "Value": "ecs-igw" }]
+      }
+    },
+    "IGWAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": { "Ref": "VPC" },
+        "InternetGatewayId": { "Ref": "InternetGateway" }
+      }
+    },
+    "ALBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "ALB Security Group",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [
+          { "IpProtocol": "tcp", "FromPort": 80, "ToPort": 80, "CidrIp": "0.0.0.0/0" },
+          { "IpProtocol": "tcp", "FromPort": 443, "ToPort": 443, "CidrIp": "0.0.0.0/0" }
+        ],
+        "Tags": [{ "Key": "Name", "Value": "alb-sg" }]
+      }
+    },
+    "AppSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "ECS Tasks Security Group",
+        "VpcId": { "Ref": "VPC" },
+        "SecurityGroupIngress": [
+          { "IpProtocol": "tcp", "FromPort": 8080, "ToPort": 8080, "SourceSecurityGroupId": { "Ref": "ALBSecurityGroup" } }
+        ],
+        "Tags": [{ "Key": "Name", "Value": "ecs-tasks-sg" }]
+      }
+    },
+    "ApplicationLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "Subnets": [
+          { "Ref": "PublicSubnetA" },
+          { "Ref": "PublicSubnetB" }
+        ],
+        "SecurityGroups": [{ "Ref": "ALBSecurityGroup" }],
+        "Tags": [{ "Key": "Name", "Value": "app-alb" }]
+      }
+    },
+    "TargetGroup": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Port": 8080,
+        "Protocol": "HTTP",
+        "VpcId": { "Ref": "VPC" },
+        "TargetType": "ip",
+        "Tags": [{ "Key": "Name", "Value": "app-tg" }]
+      }
+    },
+    "ALBListener": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "LoadBalancerArn": { "Ref": "ApplicationLoadBalancer" },
+        "Port": 80,
+        "Protocol": "HTTP",
+        "DefaultActions": [
+          { "Type": "forward", "TargetGroupArn": { "Ref": "TargetGroup" } }
+        ]
+      }
+    },
+    "ECSCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": "app-cluster",
+        "Tags": [{ "Key": "Name", "Value": "app-cluster" }]
+      }
+    },
+    "AppTaskDefinition": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "app-task",
+        "Cpu": "256",
+        "Memory": "512",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ContainerDefinitions": [
+          {
+            "Name": "app",
+            "Image": "my-app:latest",
+            "PortMappings": [{ "ContainerPort": 8080 }]
+          }
+        ]
+      }
+    },
+    "AppService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": "ALBListener",
+      "Properties": {
+        "Cluster": { "Ref": "ECSCluster" },
+        "TaskDefinition": { "Ref": "AppTaskDefinition" },
+        "DesiredCount": 2,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              { "Ref": "PrivateSubnetA" },
+              { "Ref": "PrivateSubnetB" }
+            ],
+            "SecurityGroups": [{ "Ref": "AppSecurityGroup" }]
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "app",
+            "ContainerPort": 8080,
+            "TargetGroupArn": { "Ref": "TargetGroup" }
+          }
+        ]
+      }
+    }
+  }
+}
