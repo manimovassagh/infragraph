@@ -474,7 +474,7 @@ export function HomePage() {
           <div className="flex-1 relative">
             {/* Unified toolbar */}
             <div className="absolute top-3 left-3 right-3 z-10 flex items-center gap-2">
-              <div className="flex items-center gap-1 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm min-w-0 overflow-hidden">
+              <div className="flex items-center gap-1 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm min-w-0">
                 <ResourceSummary
                   resources={state.data.resources}
                   hiddenTypes={hiddenTypes}
