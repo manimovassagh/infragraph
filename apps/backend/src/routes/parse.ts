@@ -202,7 +202,7 @@ parseRouter.post('/parse/cfn/raw', (req, res) => {
 // ─── Terraform Plan ─────────────────────────────────────────────────────────
 
 /** Inject planAction into each graph node's data from the actions map */
-function injectPlanActions(response: ParseResponse, actions: Map<string, PlanAction>): ParseResponse {
+function injectPlanActions(response: Omit<ParseResponse, 'iacSource'>, actions: Map<string, PlanAction>): Omit<ParseResponse, 'iacSource'> {
   return {
     ...response,
     nodes: response.nodes.map((n) => ({

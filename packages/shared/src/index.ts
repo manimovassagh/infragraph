@@ -95,8 +95,6 @@ export type NodeType =
 export interface GraphNodeData {
   resource: CloudResource;
   label: string;
-  /** IDs of child nodes (for VPC → subnet → resource grouping) */
-  children?: string[];
   /** Terraform plan change action (only present for plan visualization) */
   planAction?: PlanAction;
 }
@@ -124,11 +122,6 @@ export interface GraphEdge {
 
 // ─── API Contracts ────────────────────────────────────────────────────────────
 
-export interface ParseRequest {
-  /** Raw .tfstate file content as string */
-  tfstate: string;
-}
-
 export interface ParseResponse {
   nodes: GraphNode[];
   edges: GraphEdge[];
@@ -138,7 +131,7 @@ export interface ParseResponse {
   /** Parsing warnings (non-fatal issues) */
   warnings: string[];
   /** Which IaC tool produced this result */
-  iacSource?: IacSource;
+  iacSource: IacSource;
 }
 
 export interface ApiError {
@@ -192,13 +185,7 @@ export interface Session {
 }
 
 /** Lightweight summary for list endpoints (no data blob). */
-export interface SessionSummary {
-  id: string;
-  provider: CloudProvider;
-  fileName: string;
-  resourceCount: number;
-  createdAt: string;
-}
+export type SessionSummary = Omit<Session, 'userId' | 'data'>;
 
 export interface CreateSessionRequest {
   provider: CloudProvider;

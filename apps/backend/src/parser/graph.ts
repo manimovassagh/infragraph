@@ -50,7 +50,7 @@ export function buildGraphFromResources(
   resources: CloudResource[],
   warnings: string[],
   provider: ProviderConfig,
-): ParseResponse {
+): Omit<ParseResponse, 'iacSource'> {
 
   // Pass 1: build a Map from cloud IDs (e.g. "vpc-0abc") → Terraform IDs (e.g. "aws_vpc.main")
   const cloudIdToTfId = new Map<string, string>();
@@ -369,7 +369,7 @@ export function buildGraphFromResources(
 /**
  * Convenience wrapper: parse a Tfstate and build the graph in one step.
  */
-export function buildGraph(tfstate: Tfstate, provider: ProviderConfig): ParseResponse {
+export function buildGraph(tfstate: Tfstate, provider: ProviderConfig): Omit<ParseResponse, 'iacSource'> {
   const { resources, warnings } = extractResources(tfstate, provider);
   return buildGraphFromResources(resources, warnings, provider);
 }
