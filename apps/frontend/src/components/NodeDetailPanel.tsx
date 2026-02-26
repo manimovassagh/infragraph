@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+
 import type { CloudResource, GraphEdge } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { GenericIcon } from './nodes/icons/AwsIcons';
@@ -60,25 +61,30 @@ export function NodeDetailPanel({ resource, edges, resources, providerConfig, on
   }, []);
 
   // Find connected resources via edges
-  const connections = edges
-    .filter((e) => e.source === resource.id || e.target === resource.id)
-    .map((e) => {
-      const otherId = e.source === resource.id ? e.target : e.source;
-      const otherResource = resources.find((r) => r.id === otherId);
-      const direction = e.source === resource.id ? 'outgoing' : 'incoming';
-      return { edge: e, otherResource, direction };
-    })
-    .filter((c) => c.otherResource);
+  const connections = useMemo(() =>
+    edges
+      .filter((e) => e.source === resource.id || e.target === resource.id)
+      .map((e) => {
+        const otherId = e.source === resource.id ? e.target : e.source;
+        const otherResource = resources.find((r) => r.id === otherId);
+        const direction = e.source === resource.id ? 'outgoing' : 'incoming';
+        return { edge: e, otherResource, direction };
+      })
+      .filter((c) => c.otherResource),
+    [edges, resource.id, resources],
+  );
 
   // Get interesting attributes for this resource type + any sensitive keys
-  const attrKeys = providerConfig.interestingAttrs[resource.type] ?? [];
-  const allKeys = new Set(attrKeys);
-  for (const sk of resource.sensitiveKeys ?? []) {
-    if (resource.attributes[sk] !== undefined) allKeys.add(sk);
-  }
-  const displayAttrs = Array.from(allKeys)
-    .filter((key) => resource.attributes[key] !== undefined && resource.attributes[key] !== null && resource.attributes[key] !== '')
-    .map((key) => ({ key, value: resource.attributes[key] }));
+  const displayAttrs = useMemo(() => {
+    const attrKeys = providerConfig.interestingAttrs[resource.type] ?? [];
+    const allKeys = new Set(attrKeys);
+    for (const sk of resource.sensitiveKeys ?? []) {
+      if (resource.attributes[sk] !== undefined) allKeys.add(sk);
+    }
+    return Array.from(allKeys)
+      .filter((key) => resource.attributes[key] !== undefined && resource.attributes[key] !== null && resource.attributes[key] !== '')
+      .map((key) => ({ key, value: resource.attributes[key] }));
+  }, [providerConfig.interestingAttrs, resource.type, resource.attributes, resource.sensitiveKeys]);
 
   // Tags (excluding Name which is already shown as displayName)
   const tags = Object.entries(resource.tags).filter(([k]) => k !== 'Name');

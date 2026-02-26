@@ -400,6 +400,12 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
   const showPlanLegend = planActionCounts.size > 0;
 
+  // Stable event handlers to avoid React Flow re-renders
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => onNodeSelect(node.id), [onNodeSelect]);
+  const handlePaneClick = useCallback(() => onNodeSelect(null), [onNodeSelect]);
+  const handleNodeMouseEnter = useCallback((_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id), []);
+  const handleNodeMouseLeave = useCallback(() => setHoveredNodeId(null), []);
+
   return (
     <div ref={wrapperRef} className="w-full h-full">
       {hoverDimStyle && !blastRadius && <style>{hoverDimStyle}</style>}
@@ -409,10 +415,10 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         nodes={nodes}
         edges={edges}
         nodeTypes={providerConfig.nodeTypes}
-        onNodeClick={(_: React.MouseEvent, node: Node) => onNodeSelect(node.id)}
-        onPaneClick={() => onNodeSelect(null)}
-        onNodeMouseEnter={(_: React.MouseEvent, node: Node) => setHoveredNodeId(node.id)}
-        onNodeMouseLeave={() => setHoveredNodeId(null)}
+        onNodeClick={handleNodeClick}
+        onPaneClick={handlePaneClick}
+        onNodeMouseEnter={handleNodeMouseEnter}
+        onNodeMouseLeave={handleNodeMouseLeave}
         fitView
         minZoom={0.1}
         maxZoom={2}

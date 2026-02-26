@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -39,27 +39,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  async function signInWithGoogle() {
+  const signInWithGoogle = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
-  }
+  }, []);
 
-  async function signOut() {
+  const signOut = useCallback(async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
-  }
+  }, []);
 
-  async function getAccessToken(): Promise<string | null> {
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
     if (!supabase) return null;
     const { data } = await supabase.auth.getSession();
     return data.session?.access_token ?? null;
-  }
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, signInWithGoogle, signOut, getAccessToken }),
+    [user, loading, signInWithGoogle, signOut, getAccessToken],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut, getAccessToken }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

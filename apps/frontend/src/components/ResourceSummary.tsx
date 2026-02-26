@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CloudResource } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { GenericIcon } from './nodes/icons/AwsIcons';
@@ -29,14 +29,14 @@ export function ResourceSummary({ resources, hiddenTypes, providerConfig, onTogg
     return () => document.removeEventListener('mousedown', handleClick);
   }, [showOverflow]);
 
-  // Count resources by type, skip types with 0
-  const counts = new Map<string, number>();
-  for (const r of resources) {
-    counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
-  }
-
-  // Sort by count descending, then alphabetically
-  const entries = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  // Count and sort resources by type (memoized)
+  const entries = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of resources) {
+      counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [resources]);
 
   const hasActiveFilters = hiddenTypes && hiddenTypes.size > 0;
   const visibleCount = hasActiveFilters
