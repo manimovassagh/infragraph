@@ -17,12 +17,14 @@ import { estimateCosts, totalMonthlyCost, formatCost } from '@/lib/costEstimator
 import { CostPanel } from '@/components/CostPanel';
 import { parseFile, parseHcl, parseCfn, parsePlan, saveSession } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
+import { useDarkMode } from '@/lib/useDarkMode';
+import { PROVIDER_COLORS } from '@/lib/constants';
 import { UserMenu } from '@/components/UserMenu';
 
 const PROVIDER_META: Record<string, { label: string; color: string }> = {
-  aws: { label: 'AWS', color: '#FF9900' },
-  azure: { label: 'Azure', color: '#0078D4' },
-  gcp: { label: 'GCP', color: '#4285F4' },
+  aws: { label: 'AWS', color: PROVIDER_COLORS.aws },
+  azure: { label: 'Azure', color: PROVIDER_COLORS.azure },
+  gcp: { label: 'GCP', color: PROVIDER_COLORS.gcp },
 };
 
 const IAC_SOURCE_LABELS: Record<string, string> = {
@@ -44,9 +46,7 @@ export function HomePage() {
   const [state, setState] = useState<AppState>({ view: 'landing' });
   const [searchQuery, setSearchQuery] = useState('');
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
-  const [darkMode, setDarkMode] = useState(
-    () => document.documentElement.classList.contains('dark')
-  );
+  const [darkMode, toggleDarkMode] = useDarkMode();
   const [providerConfig, setProviderConfig] = useState<ProviderFrontendConfig | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -73,13 +73,6 @@ export function HomePage() {
       setProviderConfig(null);
       setState({ view: 'landing' });
     }
-  }
-
-  function toggleDarkMode() {
-    const next = !darkMode;
-    setDarkMode(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
   }
 
   // Hydrate canvas from session history (if navigated from /history)

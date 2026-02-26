@@ -3,16 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { SessionSummary } from '@infragraph/shared';
 import { useAuth } from '@/lib/AuthContext';
 import { listSessions, getSession, deleteSession } from '@/lib/api';
+import { useDarkMode } from '@/lib/useDarkMode';
+import { GITHUB_ICON_PATH, PROVIDER_COLORS } from '@/lib/constants';
 import { UserMenu } from './UserMenu';
-
-const GITHUB_PATH =
-  'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z';
-
-const providerColors: Record<string, string> = {
-  aws: '#FF9900',
-  azure: '#0078D4',
-  gcp: '#4285F4',
-};
 
 function relativeDate(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -32,16 +25,7 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const [dark, setDark] = useState(() =>
-    document.documentElement.classList.contains('dark'),
-  );
-
-  function toggleTheme() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-  }
+  const [dark, toggleTheme] = useDarkMode();
 
   useEffect(() => {
     if (authLoading || !user) {
@@ -116,7 +100,7 @@ export function HistoryPage() {
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-              <path d={GITHUB_PATH} />
+              <path d={GITHUB_ICON_PATH} />
             </svg>
             GitHub
           </a>
@@ -211,7 +195,7 @@ export function HistoryPage() {
                 {/* Provider badge */}
                 <span
                   className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-white"
-                  style={{ backgroundColor: providerColors[s.provider] ?? '#6B7280' }}
+                  style={{ backgroundColor: PROVIDER_COLORS[s.provider] ?? '#6B7280' }}
                 >
                   {s.provider}
                 </span>
