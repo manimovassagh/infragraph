@@ -38,6 +38,7 @@ interface CanvasProps {
   fileName?: string;
   blastRadiusMode?: boolean;
   costMap?: Map<string, string>;
+  showMinimap?: boolean;
   onNodeSelect: (nodeId: string | null) => void;
   onBlastRadiusComputed?: (count: number) => void;
 }
@@ -99,7 +100,7 @@ function computeBlastRadius(
 }
 
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
-  { graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, providerConfig, provider, fileName, blastRadiusMode, costMap, onNodeSelect, onBlastRadiusComputed },
+  { graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, providerConfig, provider, fileName, blastRadiusMode, costMap, showMinimap, onNodeSelect, onBlastRadiusComputed },
   ref,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -416,21 +417,24 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
         minZoom={0.1}
         maxZoom={2}
         defaultEdgeOptions={defaultEdgeOptions}
+        proOptions={{ hideAttribution: true }}
       >
         <Background color="#cbd5e1" gap={20} size={1} />
         <Controls />
-        <MiniMap
-          nodeColor={providerConfig.minimapNodeColor}
-          nodeStrokeColor={providerConfig.minimapNodeColor}
-          nodeStrokeWidth={2}
-          nodeBorderRadius={3}
-          maskColor={document.documentElement.classList.contains('dark')
-            ? 'rgba(15, 23, 42, 0.75)'
-            : 'rgba(248, 250, 252, 0.7)'}
-          pannable
-          zoomable
-          className="!bg-white/80 dark:!bg-slate-900/80 !border !border-slate-200 dark:!border-slate-700 !rounded-lg !shadow-lg"
-        />
+        {showMinimap && (
+          <MiniMap
+            nodeColor={providerConfig.minimapNodeColor}
+            nodeStrokeColor={providerConfig.minimapNodeColor}
+            nodeStrokeWidth={2}
+            nodeBorderRadius={3}
+            maskColor={document.documentElement.classList.contains('dark')
+              ? 'rgba(15, 23, 42, 0.75)'
+              : 'rgba(248, 250, 252, 0.7)'}
+            pannable
+            zoomable
+            className="!bg-white/80 dark:!bg-slate-900/80 !border !border-slate-200 dark:!border-slate-700 !rounded-lg !shadow-lg"
+          />
+        )}
       </ReactFlow>
       {showPlanLegend && (
         <div className="absolute bottom-4 right-4 z-10 rounded-lg bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-2.5 shadow-lg">
