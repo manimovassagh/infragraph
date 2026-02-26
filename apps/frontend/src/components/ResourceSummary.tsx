@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CloudResource } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
 import { GenericIcon } from './nodes/icons/AwsIcons';
@@ -15,6 +15,19 @@ interface ResourceSummaryProps {
 
 export function ResourceSummary({ resources, hiddenTypes, providerConfig, onToggleType, onResetFilters }: ResourceSummaryProps) {
   const [showOverflow, setShowOverflow] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!showOverflow) return;
+    function handleClick(e: MouseEvent) {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setShowOverflow(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showOverflow]);
 
   // Count resources by type, skip types with 0
   const counts = new Map<string, number>();
@@ -59,10 +72,9 @@ export function ResourceSummary({ resources, hiddenTypes, providerConfig, onTogg
       <span className="text-slate-200 dark:text-slate-600">|</span>
       {visibleEntries.map(([type, count]) => renderTypeButton(type, count))}
       {overflowEntries.length > 0 && (
-        <div className="relative">
+        <div className="relative" ref={overflowRef}>
           <button
             onClick={() => setShowOverflow((v) => !v)}
-            onBlur={() => setTimeout(() => setShowOverflow(false), 150)}
             className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             title={`${overflowEntries.length} more resource types`}
           >
@@ -80,7 +92,7 @@ export function ResourceSummary({ resources, hiddenTypes, providerConfig, onTogg
                 return (
                   <button
                     key={type}
-                    onMouseDown={() => onToggleType?.(type)}
+                    onClick={() => onToggleType?.(type)}
                     className={`flex items-center gap-2 w-full px-3 py-1.5 text-xs transition-colors ${
                       isHidden
                         ? 'opacity-40 hover:opacity-70'
