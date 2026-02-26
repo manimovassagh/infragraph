@@ -1,5 +1,7 @@
 # InfraGraph
 
+[![Quality & Tests](https://github.com/manimovassagh/infragraph/actions/workflows/aws-architect-ci.yml/badge.svg)](https://github.com/manimovassagh/infragraph/actions/workflows/aws-architect-ci.yml)
+
 Visualize your Infrastructure-as-Code as interactive architecture diagrams. Upload Terraform state files, HCL source, CloudFormation templates, or CDK-synthesized output — InfraGraph auto-detects your cloud provider and IaC tool, then renders a live, zoomable canvas with VPCs, subnets, and resources.
 
 ![InfraGraph Landing Page](docs/infragraph-landing.png)
