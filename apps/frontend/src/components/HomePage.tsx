@@ -9,6 +9,7 @@ import { Canvas, type CanvasHandle } from '@/components/Canvas';
 import { NodeDetailPanel } from '@/components/NodeDetailPanel';
 import { ResourceSummary } from '@/components/ResourceSummary';
 import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
+import { InventoryTable } from '@/components/InventoryTable';
 import { parseFile, parseHcl, parseCfn, parsePlan, saveSession } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { UserMenu } from '@/components/UserMenu';
@@ -46,6 +47,7 @@ export function HomePage() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [blastRadiusMode, setBlastRadiusMode] = useState(false);
   const [blastRadiusCount, setBlastRadiusCount] = useState(0);
+  const [viewMode, setViewMode] = useState<'graph' | 'table'>('graph');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const canvasRef = useRef<CanvasHandle>(null);
@@ -448,6 +450,23 @@ export function HomePage() {
               </div>
               <SearchBar ref={searchBarRef} onSearch={setSearchQuery} />
               <div className="flex items-center gap-1.5 shrink-0">
+              {/* View mode toggle */}
+              <button
+                onClick={() => setViewMode((v) => v === 'graph' ? 'table' : 'graph')}
+                className="flex items-center gap-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 transition-colors"
+                title={viewMode === 'graph' ? 'Switch to table view' : 'Switch to graph view'}
+              >
+                {viewMode === 'graph' ? (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v.75" />
+                  </svg>
+                ) : (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+                  </svg>
+                )}
+                {viewMode === 'graph' ? 'Table' : 'Graph'}
+              </button>
               <div className="relative">
                 <button
                   onClick={() => setShowExportMenu((v) => !v)}
@@ -563,24 +582,40 @@ export function HomePage() {
                 </div>
               );
             })()}
-            <Canvas
-              ref={canvasRef}
-              graphNodes={state.data.nodes}
-              graphEdges={state.data.edges}
-              selectedNodeId={state.selectedNodeId}
-              searchQuery={searchQuery}
-              hiddenTypes={hiddenTypes}
-              providerConfig={providerConfig}
-              provider={state.data.provider}
-              fileName={state.fileName}
-              blastRadiusMode={blastRadiusMode}
-              onBlastRadiusComputed={setBlastRadiusCount}
-              onNodeSelect={(id) =>
-                setState((prev) =>
-                  prev.view === 'canvas' ? { ...prev, selectedNodeId: id } : prev
-                )
-              }
-            />
+            {viewMode === 'graph' ? (
+              <Canvas
+                ref={canvasRef}
+                graphNodes={state.data.nodes}
+                graphEdges={state.data.edges}
+                selectedNodeId={state.selectedNodeId}
+                searchQuery={searchQuery}
+                hiddenTypes={hiddenTypes}
+                providerConfig={providerConfig}
+                provider={state.data.provider}
+                fileName={state.fileName}
+                blastRadiusMode={blastRadiusMode}
+                onBlastRadiusComputed={setBlastRadiusCount}
+                onNodeSelect={(id) =>
+                  setState((prev) =>
+                    prev.view === 'canvas' ? { ...prev, selectedNodeId: id } : prev
+                  )
+                }
+              />
+            ) : (
+              <InventoryTable
+                resources={state.data.resources}
+                edges={state.data.edges}
+                hiddenTypes={hiddenTypes}
+                searchQuery={searchQuery}
+                providerConfig={providerConfig}
+                selectedResourceId={state.selectedNodeId}
+                onSelectResource={(id) =>
+                  setState((prev) =>
+                    prev.view === 'canvas' ? { ...prev, selectedNodeId: id } : prev
+                  )
+                }
+              />
+            )}
           </div>
           {selectedResource && (
             <div className="w-80 border-l border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 overflow-y-auto shadow-sm shrink-0 animate-slide-in">
