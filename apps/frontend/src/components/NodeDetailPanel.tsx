@@ -32,9 +32,12 @@ interface NodeDetailPanelProps {
   providerConfig: ProviderFrontendConfig;
   onClose: () => void;
   onSelectResource?: (nodeId: string) => void;
+  blastRadiusMode?: boolean;
+  onToggleBlastRadius?: () => void;
+  blastRadiusCount?: number;
 }
 
-export function NodeDetailPanel({ resource, edges, resources, providerConfig, onClose, onSelectResource }: NodeDetailPanelProps) {
+export function NodeDetailPanel({ resource, edges, resources, providerConfig, onClose, onSelectResource, blastRadiusMode, onToggleBlastRadius, blastRadiusCount }: NodeDetailPanelProps) {
   const [copied, setCopied] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const meta = providerConfig.typeMeta[resource.type] ?? { label: resource.type, color: '#7B8794', Icon: GenericIcon };
@@ -123,6 +126,32 @@ export function NodeDetailPanel({ resource, edges, resources, providerConfig, on
           </button>
         </div>
       </div>
+
+      {/* Blast Radius Toggle */}
+      {onToggleBlastRadius && (
+        <button
+          onClick={onToggleBlastRadius}
+          className={`mb-4 w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border transition-all ${
+            blastRadiusMode
+              ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+              : 'bg-slate-50 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0-10.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+            <span className="text-xs font-medium">Blast Radius</span>
+          </div>
+          {blastRadiusMode && blastRadiusCount !== undefined ? (
+            <span className="text-xs font-semibold bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-300 px-2 py-0.5 rounded-full">
+              {blastRadiusCount} affected
+            </span>
+          ) : (
+            <span className="text-[10px] text-slate-400">Show impact</span>
+          )}
+        </button>
+      )}
 
       {/* Region */}
       {resource.region && (

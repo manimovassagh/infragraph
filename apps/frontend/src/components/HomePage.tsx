@@ -44,6 +44,8 @@ export function HomePage() {
   const [providerConfig, setProviderConfig] = useState<ProviderFrontendConfig | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [blastRadiusMode, setBlastRadiusMode] = useState(false);
+  const [blastRadiusCount, setBlastRadiusCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const canvasRef = useRef<CanvasHandle>(null);
@@ -571,6 +573,8 @@ export function HomePage() {
               providerConfig={providerConfig}
               provider={state.data.provider}
               fileName={state.fileName}
+              blastRadiusMode={blastRadiusMode}
+              onBlastRadiusComputed={setBlastRadiusCount}
               onNodeSelect={(id) =>
                 setState((prev) =>
                   prev.view === 'canvas' ? { ...prev, selectedNodeId: id } : prev
@@ -585,11 +589,15 @@ export function HomePage() {
                 edges={state.data.edges}
                 resources={state.data.resources}
                 providerConfig={providerConfig}
-                onClose={() =>
+                blastRadiusMode={blastRadiusMode}
+                blastRadiusCount={blastRadiusCount}
+                onToggleBlastRadius={() => setBlastRadiusMode((v) => !v)}
+                onClose={() => {
+                  setBlastRadiusMode(false);
                   setState((prev) =>
                     prev.view === 'canvas' ? { ...prev, selectedNodeId: null } : prev
-                  )
-                }
+                  );
+                }}
                 onSelectResource={(nodeId) =>
                   setState((prev) =>
                     prev.view === 'canvas' ? { ...prev, selectedNodeId: nodeId } : prev

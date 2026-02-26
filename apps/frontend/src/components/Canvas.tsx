@@ -1,4 +1,4 @@
-import { useRef, useMemo, useImperativeHandle, forwardRef, useCallback, useState } from 'react';
+import { useRef, useMemo, useImperativeHandle, forwardRef, useCallback, useState, useEffect } from 'react';
 import { toPng } from 'html-to-image';
 import ReactFlow, {
   Background,
@@ -36,7 +36,9 @@ interface CanvasProps {
   providerConfig: ProviderFrontendConfig;
   provider?: string;
   fileName?: string;
+  blastRadiusMode?: boolean;
   onNodeSelect: (nodeId: string | null) => void;
+  onBlastRadiusComputed?: (count: number) => void;
 }
 
 function nodeMatchesSearch(node: GraphNode, query: string): boolean {
@@ -58,8 +60,45 @@ export interface CanvasHandle {
   exportHtml: () => void;
 }
 
+/**
+ * BFS traversal to find all nodes transitively connected to a root node.
+ * Returns a Map of nodeId → depth (hop count from root).
+ */
+function computeBlastRadius(
+  rootId: string,
+  edges: GraphEdge[],
+  nodes: GraphNode[],
+): Map<string, number> {
+  // Build adjacency list (bidirectional: "what depends on me" + "what I depend on")
+  const adj = new Map<string, Set<string>>();
+  for (const e of edges) {
+    if (!adj.has(e.source)) adj.set(e.source, new Set());
+    if (!adj.has(e.target)) adj.set(e.target, new Set());
+    adj.get(e.source)!.add(e.target);
+    adj.get(e.target)!.add(e.source);
+  }
+
+  const depths = new Map<string, number>();
+  depths.set(rootId, 0);
+  const queue = [rootId];
+  const nodeIds = new Set(nodes.map((n) => n.id));
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const currentDepth = depths.get(current)!;
+    for (const neighbor of adj.get(current) ?? []) {
+      if (!depths.has(neighbor) && nodeIds.has(neighbor)) {
+        depths.set(neighbor, currentDepth + 1);
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  return depths;
+}
+
 export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
-  { graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, providerConfig, provider, fileName, onNodeSelect },
+  { graphNodes, graphEdges, selectedNodeId, searchQuery, hiddenTypes, providerConfig, provider, fileName, blastRadiusMode, onNodeSelect, onBlastRadiusComputed },
   ref,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -164,6 +203,89 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
     return { nodeIds, edgeIds };
   }, [hoveredNodeId, visibleEdges, visibleNodes]);
 
+  // Compute blast radius when mode is active + a node is selected
+  const blastRadius = useMemo(() => {
+    if (!blastRadiusMode || !selectedNodeId) return null;
+    const depths = computeBlastRadius(selectedNodeId, visibleEdges, visibleNodes);
+    // Include parent containers for visible context
+    for (const n of visibleNodes) {
+      if (depths.has(n.id) && n.parentNode) {
+        if (!depths.has(n.parentNode)) depths.set(n.parentNode, 999);
+        const parent = visibleNodes.find((p) => p.id === n.parentNode);
+        if (parent?.parentNode && !depths.has(parent.parentNode)) {
+          depths.set(parent.parentNode, 999);
+        }
+      }
+    }
+    return depths;
+  }, [blastRadiusMode, selectedNodeId, visibleEdges, visibleNodes]);
+
+  // Notify parent of blast radius count (excluding containers at depth 999 and root)
+  const blastRadiusCount = useMemo(() => {
+    if (!blastRadius) return 0;
+    let count = 0;
+    for (const [, depth] of blastRadius) {
+      if (depth > 0 && depth < 999) count++;
+    }
+    return count;
+  }, [blastRadius]);
+
+  // Report count back to parent
+  useEffect(() => {
+    if (blastRadiusMode) onBlastRadiusComputed?.(blastRadiusCount);
+  }, [blastRadiusMode, blastRadiusCount, onBlastRadiusComputed]);
+
+  // Blast radius CSS dimming — depth-based color tiers
+  const blastRadiusStyle = useMemo(() => {
+    if (!blastRadius) return null;
+    const dimmedNodeSelectors: string[] = [];
+    const dimmedEdgeSelectors: string[] = [];
+    const depth1Selectors: string[] = [];
+    const depth2Selectors: string[] = [];
+    const depth3PlusSelectors: string[] = [];
+
+    for (const n of visibleNodes) {
+      const depth = blastRadius.get(n.id);
+      if (depth === undefined) {
+        dimmedNodeSelectors.push(`.react-flow__node[data-id="${CSS.escape(n.id)}"]`);
+      } else if (depth === 1) {
+        depth1Selectors.push(`.react-flow__node[data-id="${CSS.escape(n.id)}"]`);
+      } else if (depth === 2) {
+        depth2Selectors.push(`.react-flow__node[data-id="${CSS.escape(n.id)}"]`);
+      } else if (depth > 2 && depth < 999) {
+        depth3PlusSelectors.push(`.react-flow__node[data-id="${CSS.escape(n.id)}"]`);
+      }
+    }
+
+    // Dim edges not between blast radius nodes
+    for (const e of visibleEdges) {
+      const srcIn = blastRadius.has(e.source);
+      const tgtIn = blastRadius.has(e.target);
+      if (!srcIn || !tgtIn) {
+        dimmedEdgeSelectors.push(`.react-flow__edge[data-testid="rf__edge-${CSS.escape(e.id)}"]`);
+      }
+    }
+
+    const rules: string[] = [];
+    if (dimmedNodeSelectors.length > 0) {
+      rules.push(`${dimmedNodeSelectors.join(',')}{opacity:0.1!important;transition:opacity 0.3s ease}`);
+    }
+    if (dimmedEdgeSelectors.length > 0) {
+      rules.push(`${dimmedEdgeSelectors.join(',')}{opacity:0.08!important;transition:opacity 0.3s ease}`);
+    }
+    // Depth tiers — closer = more vivid red glow
+    if (depth1Selectors.length > 0) {
+      rules.push(`${depth1Selectors.join(',')}{outline:3px solid #ef4444!important;outline-offset:2px;border-radius:8px;transition:outline 0.3s ease}`);
+    }
+    if (depth2Selectors.length > 0) {
+      rules.push(`${depth2Selectors.join(',')}{outline:2px solid #f97316!important;outline-offset:2px;border-radius:8px;transition:outline 0.3s ease}`);
+    }
+    if (depth3PlusSelectors.length > 0) {
+      rules.push(`${depth3PlusSelectors.join(',')}{outline:2px solid #fbbf24!important;outline-offset:2px;border-radius:8px;transition:outline 0.3s ease}`);
+    }
+    return rules.length > 0 ? rules.join('\n') : null;
+  }, [blastRadius, visibleNodes, visibleEdges]);
+
   // Stable node objects — only change on search/filter/plan, NOT on hover
   const nodes = useMemo(() => {
     return visibleNodes.map((n) => {
@@ -253,7 +375,8 @@ export const Canvas = forwardRef<CanvasHandle, CanvasProps>(function Canvas(
 
   return (
     <div ref={wrapperRef} className="w-full h-full">
-      {hoverDimStyle && <style>{hoverDimStyle}</style>}
+      {hoverDimStyle && !blastRadius && <style>{hoverDimStyle}</style>}
+      {blastRadiusStyle && <style>{blastRadiusStyle}</style>}
       <ReactFlow
         nodes={nodes}
         edges={edges}
