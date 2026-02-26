@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import type { CloudProvider, ParseResponse } from '@infragraph/shared';
 import type { ProviderFrontendConfig } from '@/providers/types';
@@ -12,6 +12,7 @@ import { SearchBar, type SearchBarHandle } from '@/components/SearchBar';
 import { InventoryTable } from '@/components/InventoryTable';
 import { SecurityPanel } from '@/components/SecurityPanel';
 import { runSecurityScan, SEVERITY_CONFIG } from '@/lib/securityRules';
+import { relayoutNodes, LAYOUT_OPTIONS, type LayoutMode } from '@/lib/layoutEngine';
 import { parseFile, parseHcl, parseCfn, parsePlan, saveSession } from '@/lib/api';
 import { useAuth } from '@/lib/AuthContext';
 import { UserMenu } from '@/components/UserMenu';
@@ -51,6 +52,8 @@ export function HomePage() {
   const [blastRadiusCount, setBlastRadiusCount] = useState(0);
   const [viewMode, setViewMode] = useState<'graph' | 'table'>('graph');
   const [showSecurity, setShowSecurity] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('hierarchical');
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchBarRef = useRef<SearchBarHandle>(null);
   const canvasRef = useRef<CanvasHandle>(null);
@@ -372,6 +375,17 @@ export function HomePage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  // Compute laid-out nodes based on selected layout mode
+  const canvasNodes = useMemo(
+    () => (state.view === 'canvas' ? state.data.nodes : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only recompute when data changes
+    [state.view, state.view === 'canvas' ? state.data : null],
+  );
+  const layoutNodes = useMemo(
+    () => relayoutNodes(canvasNodes, layoutMode),
+    [canvasNodes, layoutMode],
+  );
+
   // Direct /canvas access with no data → redirect to landing
   // (but allow through if session is being hydrated from /history)
   if (location.pathname === '/canvas' && state.view !== 'canvas' && !sessionStorage.getItem('loadSession')) {
@@ -497,6 +511,47 @@ export function HomePage() {
                 )}
                 {viewMode === 'graph' ? 'Table' : 'Graph'}
               </button>
+              {/* Layout picker */}
+              {viewMode === 'graph' && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowLayoutMenu((v) => !v)}
+                    onBlur={() => setTimeout(() => setShowLayoutMenu(false), 150)}
+                    className="flex items-center gap-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 px-3 py-1.5 shadow-sm text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 transition-colors"
+                    title="Change layout"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                    </svg>
+                    {LAYOUT_OPTIONS.find((o) => o.value === layoutMode)?.label ?? 'Layout'}
+                    <svg className="h-3 w-3 -ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  {showLayoutMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-36 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg py-1 z-50">
+                      {LAYOUT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onMouseDown={() => { setLayoutMode(opt.value); setShowLayoutMenu(false); }}
+                          className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors ${
+                            layoutMode === opt.value
+                              ? 'text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 font-medium'
+                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {opt.label}
+                          {layoutMode === opt.value && (
+                            <svg className="h-3 w-3 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="relative">
                 <button
                   onClick={() => setShowExportMenu((v) => !v)}
@@ -615,7 +670,7 @@ export function HomePage() {
             {viewMode === 'graph' ? (
               <Canvas
                 ref={canvasRef}
-                graphNodes={state.data.nodes}
+                graphNodes={layoutNodes}
                 graphEdges={state.data.edges}
                 selectedNodeId={state.selectedNodeId}
                 searchQuery={searchQuery}
