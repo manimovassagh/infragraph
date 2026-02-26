@@ -129,7 +129,7 @@ export function ProviderSelect({ onUpload, onTrySample, onTryCfnSample, onTryPla
 
             {/* Sample pill buttons */}
             <div className="flex flex-wrap items-center gap-2 mt-6">
-              <span className="text-sm text-slate-500 dark:text-slate-500">Try a sample:</span>
+              <span className="text-sm text-slate-600 dark:text-slate-500 font-medium">Try a sample:</span>
               {samples.map((s) => (
                 <button
                   key={s.id}

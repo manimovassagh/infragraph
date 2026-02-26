@@ -136,7 +136,7 @@ githubRouter.post('/github/parse', async (req, res) => {
     const { resources, warnings } = await extractResourcesFromHcl(fileMap, provider);
     const graphResult = buildGraphFromResources(resources, warnings, provider);
 
-    res.json(graphResult);
+    res.json({ ...graphResult, iacSource: 'terraform-hcl' });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     const apiErr: ApiError = { error: 'Failed to parse project', details: message };
