@@ -160,7 +160,7 @@ export function ProviderSelect({ onUpload, onTrySample, onTryCfnSample, onTryPla
 
       {/* ── Footer ── */}
       <footer className="flex items-center justify-center gap-2 px-8 py-4 text-xs text-slate-400 dark:text-slate-500 relative z-10">
-        <span className="font-mono">v2.0</span>
+        <span className="font-mono">v2.2</span>
         <span>&middot;</span>
         <span className="font-medium">Open Source</span>
       </footer>

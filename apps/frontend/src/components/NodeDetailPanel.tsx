@@ -40,6 +40,11 @@ interface NodeDetailPanelProps {
 export function NodeDetailPanel({ resource, edges, resources, providerConfig, onClose, onSelectResource, blastRadiusMode, onToggleBlastRadius, blastRadiusCount }: NodeDetailPanelProps) {
   const [copied, setCopied] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
+  const [prevResourceId, setPrevResourceId] = useState(resource.id);
+  if (resource.id !== prevResourceId) {
+    setPrevResourceId(resource.id);
+    setRevealedKeys(new Set());
+  }
   const meta = providerConfig.typeMeta[resource.type] ?? { label: resource.type, color: '#7B8794', Icon: GenericIcon };
   const { Icon } = meta;
 

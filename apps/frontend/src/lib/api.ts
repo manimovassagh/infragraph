@@ -77,23 +77,6 @@ export async function parsePlan(file: File): Promise<ParseResponse> {
   return res.json();
 }
 
-export async function parseRaw(tfstate: string, provider?: CloudProvider): Promise<ParseResponse> {
-  const params = provider ? `?provider=${provider}` : '';
-  const headers = { 'Content-Type': 'application/json', ...(await authHeaders()) };
-  const res = await fetch(`${API_BASE}/api/parse/raw${params}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ tfstate }),
-  });
-
-  if (!res.ok) {
-    const err: ApiError = await res.json();
-    throw new Error(err.details ?? err.error);
-  }
-
-  return res.json();
-}
-
 // ─── Session API ─────────────────────────────────────────────────────────────
 
 export async function listSessions(): Promise<SessionSummary[]> {
