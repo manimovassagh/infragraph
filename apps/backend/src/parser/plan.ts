@@ -38,6 +38,29 @@ function mapActions(actions: string[]): PlanAction {
   return 'no-op';
 }
 
+/** Validate that a parsed JSON object looks like a Terraform plan */
+export function validatePlanStructure(plan: unknown): asserts plan is TerraformPlan {
+  if (typeof plan !== 'object' || plan === null || Array.isArray(plan)) {
+    throw new Error('Plan must be a JSON object');
+  }
+  const obj = plan as Record<string, unknown>;
+  if (!Array.isArray(obj['resource_changes'])) {
+    throw new Error('Missing resource_changes array. Run: terraform show -json tfplan > plan.json');
+  }
+  // Spot-check first entry has expected shape
+  const changes = obj['resource_changes'] as unknown[];
+  if (changes.length > 0) {
+    const first = changes[0] as Record<string, unknown>;
+    if (typeof first['type'] !== 'string' || typeof first['name'] !== 'string') {
+      throw new Error('Invalid resource_changes entry — expected type and name fields');
+    }
+    const change = first['change'] as Record<string, unknown> | undefined;
+    if (!change || !Array.isArray(change['actions'])) {
+      throw new Error('Invalid resource_changes entry — expected change.actions array');
+    }
+  }
+}
+
 /** Parse a Terraform plan JSON and extract resources with their change actions */
 export function extractResourcesFromPlan(
   plan: TerraformPlan,

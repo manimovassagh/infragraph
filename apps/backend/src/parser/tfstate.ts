@@ -29,6 +29,15 @@ export function parseTfstate(raw: string): Tfstate {
     throw new Error('Missing or invalid "resources" array in tfstate');
   }
 
+  // Spot-check first resource has expected structure
+  const resources = obj['resources'] as unknown[];
+  if (resources.length > 0) {
+    const first = resources[0] as Record<string, unknown>;
+    if (typeof first['type'] !== 'string' || typeof first['name'] !== 'string' || !Array.isArray(first['instances'])) {
+      throw new Error('Invalid resource structure — expected type, name, and instances fields');
+    }
+  }
+
   return obj as unknown as Tfstate;
 }
 

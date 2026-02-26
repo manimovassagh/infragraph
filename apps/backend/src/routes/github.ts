@@ -80,7 +80,7 @@ githubRouter.post('/github/scan', async (req, res) => {
   try {
     const token = getGitHubToken(req);
     const { owner, repo } = parseRepoUrl(parsed.data.repoUrl);
-    const { defaultBranch, projects } = await scanRepo(owner, repo, 'main', token);
+    const { defaultBranch, projects } = await scanRepo(owner, repo, undefined, token);
 
     if (projects.length === 0) {
       const err: ApiError = { error: 'No Terraform projects found', details: 'This repository does not contain any .tf files' };
@@ -111,7 +111,7 @@ githubRouter.post('/github/parse', async (req, res) => {
     const { owner, repo } = parseRepoUrl(parsed.data.repoUrl);
 
     // First scan to get the branch and file list
-    const { defaultBranch, projects } = await scanRepo(owner, repo, 'main', token);
+    const { defaultBranch, projects } = await scanRepo(owner, repo, undefined, token);
     const project = projects.find((p) => p.path === parsed.data.projectPath);
     if (!project) {
       const err: ApiError = { error: 'Project not found', details: `No .tf files in ${parsed.data.projectPath}` };

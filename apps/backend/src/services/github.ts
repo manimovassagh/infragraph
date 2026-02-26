@@ -107,26 +107,33 @@ interface GitTreeResponse {
   truncated: boolean;
 }
 
+/** Fetch the default branch name for a repository. */
+async function fetchDefaultBranch(owner: string, repo: string, token?: string): Promise<string> {
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if (!res.ok) {
+    throw new Error(`Repository not found: ${owner}/${repo} (${res.status})`);
+  }
+  const data = (await res.json()) as { default_branch: string };
+  return data.default_branch;
+}
+
 /** Scan a GitHub repo for directories containing .tf files. */
 export async function scanRepo(
   owner: string,
   repo: string,
-  branch = 'main',
+  branch?: string,
   token?: string,
 ): Promise<{ defaultBranch: string; projects: GitHubTerraformProject[] }> {
+  // Fetch actual default branch if not specified
+  const resolvedBranch = branch ?? await fetchDefaultBranch(owner, repo, token);
+
   // Use the Git Trees API with recursive=1 to get the full file tree in one call
-  const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(branch)}?recursive=1`;
+  const treeUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(resolvedBranch)}?recursive=1`;
   const res = await fetch(treeUrl, {
     headers: ghHeaders(token),
   });
 
-  if (res.status === 404) {
-    // Try 'master' as fallback for older repos
-    if (branch === 'main') {
-      return scanRepo(owner, repo, 'master', token);
-    }
-    throw new Error(`Repository not found: ${owner}/${repo}`);
-  }
   if (!res.ok) {
     throw new Error(`GitHub API error: ${res.status} ${res.statusText}`);
   }
@@ -153,7 +160,7 @@ export async function scanRepo(
     }))
     .sort((a, b) => a.path.localeCompare(b.path));
 
-  return { defaultBranch: branch, projects };
+  return { defaultBranch: resolvedBranch, projects };
 }
 
 /** Fetch all .tf file contents from a specific project directory. */

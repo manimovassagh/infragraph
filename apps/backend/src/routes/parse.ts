@@ -5,7 +5,7 @@ import { parseTfstate } from '../parser/tfstate.js';
 import { buildGraph, buildGraphFromResources } from '../parser/graph.js';
 import { parseHclFiles, extractResourcesFromParsedHcl } from '../parser/hcl.js';
 import { parseCfnTemplate, extractResourcesFromCfn } from '../parser/cloudformation.js';
-import { extractResourcesFromPlan, type TerraformPlan } from '../parser/plan.js';
+import { extractResourcesFromPlan, validatePlanStructure } from '../parser/plan.js';
 import { detectProvider, detectProviderFromTypes, getProvider } from '../providers/index.js';
 import type { CloudProvider, ParseResponse, ApiError, PlanAction } from '@infragraph/shared';
 
@@ -234,13 +234,8 @@ parseRouter.post('/parse/plan', planUpload.single('plan'), (req, res) => {
     }
 
     const raw = req.file.buffer.toString('utf-8');
-    const plan: TerraformPlan = JSON.parse(raw);
-
-    if (!plan.resource_changes || !Array.isArray(plan.resource_changes)) {
-      const err: ApiError = { error: 'Invalid plan format', details: 'Missing resource_changes array. Run: terraform show -json tfplan > plan.json' };
-      res.status(400).json(err);
-      return;
-    }
+    const plan = JSON.parse(raw) as unknown;
+    validatePlanStructure(plan);
 
     // Auto-detect provider from resource types in the plan
     const types = plan.resource_changes.map((rc) => rc.type);
@@ -271,13 +266,8 @@ parseRouter.post('/parse/plan/raw', (req, res) => {
   }
 
   try {
-    const plan: TerraformPlan = JSON.parse(result.data.plan);
-
-    if (!plan.resource_changes || !Array.isArray(plan.resource_changes)) {
-      const err: ApiError = { error: 'Invalid plan format', details: 'Missing resource_changes array' };
-      res.status(400).json(err);
-      return;
-    }
+    const plan = JSON.parse(result.data.plan) as unknown;
+    validatePlanStructure(plan);
 
     const types = plan.resource_changes.map((rc) => rc.type);
     const override = resolveProviderParam(req.query['provider']);

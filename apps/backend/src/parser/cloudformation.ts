@@ -95,6 +95,14 @@ export function parseCfnTemplate(raw: string): CfnTemplate {
     throw new Error('Missing or invalid "Resources" block in CloudFormation template');
   }
 
+  // Spot-check that resource entries have a Type field
+  const resources = obj['Resources'] as Record<string, unknown>;
+  for (const [logicalId, entry] of Object.entries(resources)) {
+    if (typeof entry !== 'object' || entry === null || typeof (entry as Record<string, unknown>)['Type'] !== 'string') {
+      throw new Error(`Invalid resource "${logicalId}" — missing or invalid Type field`);
+    }
+  }
+
   return obj as unknown as CfnTemplate;
 }
 
