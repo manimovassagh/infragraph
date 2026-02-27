@@ -23,6 +23,9 @@ const config: Config = {
       animation: {
         gradient: 'gradient 8s ease infinite',
         'slide-in': 'slideIn 0.18s ease-out',
+        'fade-in-up': 'fadeInUp 0.5s ease-out',
+        'fade-in': 'fadeIn 0.4s ease-out',
+        'scale-in': 'scaleIn 0.3s ease-out',
       },
       keyframes: {
         gradient: {
@@ -32,6 +35,18 @@ const config: Config = {
         slideIn: {
           '0%': { transform: 'translateX(20px)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        fadeInUp: {
+          '0%': { transform: 'translateY(16px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
         },
       },
     },

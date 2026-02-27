@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { UserMenu } from './UserMenu';
-import { useDarkMode } from '@/lib/useDarkMode';
+
 import { GITHUB_ICON_PATH } from '@/lib/constants';
 
 type Section = 'overview' | 'quickstart' | 'features' | 'github' | 'providers' | 'api' | 'keyboard';
@@ -35,6 +35,120 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
     >
       {children}
     </span>
+  );
+}
+
+function SectionHeading({
+  badge,
+  title,
+  subtitle,
+}: {
+  badge?: string;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div>
+      {badge && (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-violet-100 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 mb-3">
+          {badge}
+        </span>
+      )}
+      <h1 className="text-4xl md:text-5xl font-bold tracking-tight">{title}</h1>
+      {subtitle && (
+        <p className="mt-4 text-lg text-slate-500 dark:text-slate-400 leading-relaxed max-w-3xl">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ScreenshotShowcase({
+  src,
+  alt,
+  caption,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+}) {
+  return (
+    <figure>
+      <div className="screenshot-frame">
+        <img src={src} alt={alt} className="w-full" loading="lazy" />
+      </div>
+      {caption && (
+        <figcaption className="mt-2 text-center text-xs text-slate-400 dark:text-slate-500">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
+function StatsBar() {
+  const stats = [
+    { value: '20+', label: 'AWS' },
+    { value: '12+', label: 'Azure' },
+    { value: '11+', label: 'GCP' },
+    { value: '3', label: 'IaC Tools' },
+    { value: '3', label: 'Clouds' },
+    { value: '10+', label: 'Features' },
+  ];
+  return (
+    <div className="stats-bar">
+      <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
+        {stats.map((s) => (
+          <div key={s.label} className="text-center">
+            <p className="text-2xl font-bold">{s.value}</p>
+            <p className="text-xs text-white/70 font-medium">{s.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FeatureShowcaseCard({
+  title,
+  description,
+  screenshotSrc,
+  screenshotAlt,
+  accentColor,
+  reverse,
+  children,
+}: {
+  title: string;
+  description: string;
+  screenshotSrc: string;
+  screenshotAlt: string;
+  accentColor: string;
+  reverse?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/50"
+      style={{ background: `linear-gradient(135deg, ${accentColor}08, ${accentColor}03)` }}
+    >
+      <div className={`grid md:grid-cols-2 gap-6 p-6 md:p-8 ${reverse ? 'md:[direction:rtl]' : ''}`}>
+        <div className={`space-y-4 ${reverse ? 'md:[direction:ltr]' : ''}`}>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{description}</p>
+          {children && <div className={reverse ? 'md:[direction:ltr]' : ''}>{children}</div>}
+        </div>
+        <div className={reverse ? 'md:[direction:ltr]' : ''}>
+          <ScreenshotShowcase src={screenshotSrc} alt={screenshotAlt} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GradientDivider() {
+  return (
+    <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent" />
   );
 }
 
@@ -109,7 +223,35 @@ export function DocsPage() {
   const urlSection = pathToSection[location.pathname] ?? 'overview';
   const [override, setOverride] = useState<Section | null>(null);
   const [lastPath, setLastPath] = useState(location.pathname);
-  const [dark, toggleTheme] = useDarkMode();
+  // Docs page defaults to light mode for readability.
+  // User can still toggle to dark via the theme button.
+  const savedThemeRef = useRef<string | null>(null);
+  const [dark, setDark] = useState(false); // always start light
+
+  useEffect(() => {
+    // Save the global theme so we can restore it when leaving
+    savedThemeRef.current = localStorage.getItem('theme');
+    // Force light on mount
+    document.documentElement.classList.remove('dark');
+    return () => {
+      // Restore the user's global theme when navigating away
+      const saved = savedThemeRef.current;
+      if (saved === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+  }, []);
+
+  const toggleTheme = () => {
+    setDark((prev) => {
+      const next = !prev;
+      document.documentElement.classList.toggle('dark', next);
+      return next;
+    });
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,7 +280,7 @@ export function DocsPage() {
   return (
     <div className={`min-h-screen ${dark ? 'bg-slate-950 text-slate-100' : 'bg-white text-slate-900'}`}>
       {/* Nav */}
-      <nav className="flex items-center justify-between px-8 py-5 max-w-6xl mx-auto">
+      <nav className="flex items-center justify-between px-8 py-5 max-w-7xl mx-auto">
         <div className="flex items-center gap-1">
           <Link
             to="/"
@@ -203,7 +345,7 @@ export function DocsPage() {
         </div>
       ) : (
         /* Documentation — sidebar + content */
-        <div className="max-w-6xl mx-auto px-8 py-8 flex gap-12">
+        <div className="max-w-7xl mx-auto px-8 py-8 flex gap-12">
           {/* Sidebar */}
           <aside className="hidden md:block w-48 shrink-0">
             <div className="sticky top-8">
@@ -371,23 +513,23 @@ function SearchResults({
 
 function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       {/* Hero */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">InfraGraph Documentation</h1>
-        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400 leading-relaxed">
-          InfraGraph is an open-source infrastructure visualization platform that transforms
-          your Terraform, CloudFormation, and CDK code into interactive, multi-cloud architecture diagrams — in seconds.
-        </p>
-      </div>
+      <SectionHeading
+        badge="Documentation"
+        title="InfraGraph Documentation"
+        subtitle="InfraGraph is an open-source infrastructure visualization platform that transforms your Terraform, CloudFormation, and CDK code into interactive, multi-cloud architecture diagrams — in seconds."
+      />
+
+      {/* Stats bar */}
+      <StatsBar />
 
       {/* Hero screenshot */}
-      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-lg">
-        <img
+      <div className="gradient-border">
+        <ScreenshotShowcase
           src="/screenshots/canvas-aws.png"
           alt="InfraGraph AWS architecture diagram showing VPCs, subnets, EC2 instances, and other resources"
-          className="w-full"
-          loading="lazy"
+          caption="AWS infrastructure with nested VPCs, subnets, and resource relationships"
         />
       </div>
 
@@ -402,6 +544,7 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
             ),
             title: 'Multi-Cloud',
             desc: 'AWS, Azure, and GCP with automatic provider detection from your resource types.',
+            accent: '#8B5CF6',
           },
           {
             icon: (
@@ -411,6 +554,7 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
             ),
             title: 'GitHub Native',
             desc: 'Connect your GitHub account to browse repos and parse IaC projects directly.',
+            accent: '#3B82F6',
           },
           {
             icon: (
@@ -420,12 +564,14 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
             ),
             title: 'API-First',
             desc: 'Full REST API for programmatic access. Integrate into CI/CD, scripts, or your own tools.',
+            accent: '#06B6D4',
           },
         ].map((item) => (
-          <div key={item.title} className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30">
+          <div key={item.title} className="docs-card-glow p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30">
+            <div className="h-1 w-12 rounded-full mb-4" style={{ backgroundColor: item.accent }} />
             <div className="flex items-center gap-2.5 mb-2 text-violet-600 dark:text-violet-400">
               {item.icon}
-              <h3 className="font-semibold text-sm">{item.title}</h3>
+              <h3 className="font-semibold">{item.title}</h3>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">{item.desc}</p>
           </div>
@@ -433,19 +579,19 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
       </div>
 
       {/* How it works */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">How It Works</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
+      <div className="space-y-5">
+        <h2 className="text-2xl font-bold">How It Works</h2>
+        <div className="grid sm:grid-cols-3 gap-5">
           {[
             { step: '1', title: 'Provide Your IaC', desc: 'Upload a Terraform, CloudFormation, or CDK file — or connect a GitHub repo.' },
             { step: '2', title: 'Parse & Analyze', desc: 'InfraGraph extracts resources, resolves dependencies, and detects the cloud provider.' },
             { step: '3', title: 'Visualize & Analyze', desc: 'Interactive diagram with blast radius, cost estimation, security scanning, multiple layouts, and export.' },
           ].map((item) => (
-            <div key={item.step} className="flex gap-3">
-              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold shrink-0">{item.step}</span>
+            <div key={item.step} className="flex gap-4">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-600 text-white text-lg font-bold shrink-0">{item.step}</span>
               <div>
-                <p className="font-medium text-sm text-slate-900 dark:text-white">{item.title}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
+                <p className="font-semibold text-slate-900 dark:text-white">{item.title}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -453,8 +599,8 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
       </div>
 
       {/* Use Cases */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Use Cases</h2>
+      <div className="space-y-5">
+        <h2 className="text-2xl font-bold">Use Cases</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           {[
             { title: 'Architecture Reviews', desc: 'Visualize infrastructure before and after changes. Share diagrams in pull request discussions.' },
@@ -464,8 +610,10 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
             { title: 'Documentation', desc: 'Export diagrams as PNG for wikis, runbooks, and internal documentation. Always current, never stale.' },
             { title: 'Multi-Cloud Visibility', desc: 'Visualize AWS, Azure, and GCP infrastructure side by side with consistent, provider-branded diagrams.' },
           ].map((item) => (
-            <div key={item.title} className="flex items-start gap-2.5 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-              <span className="text-violet-500 mt-0.5 shrink-0">&#9679;</span>
+            <div key={item.title} className="docs-card-glow flex items-start gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20">
+              <svg className="w-5 h-5 text-green-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <div>
                 <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
@@ -475,32 +623,36 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
         </div>
       </div>
 
-      {/* Quick links */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <button
-          onClick={() => onNavigate('quickstart')}
-          className="p-4 rounded-xl border text-left transition-colors border-violet-200 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/5 hover:bg-violet-100 dark:hover:bg-violet-500/10"
-        >
-          <p className="font-semibold text-sm text-violet-700 dark:text-violet-300">Quick Start Guide &rarr;</p>
-        </button>
-        <button
-          onClick={() => onNavigate('features')}
-          className="p-4 rounded-xl border text-left transition-colors border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-        >
-          <p className="font-semibold text-sm text-slate-900 dark:text-white">Features &rarr;</p>
-        </button>
-        <button
-          onClick={() => onNavigate('github')}
-          className="p-4 rounded-xl border text-left transition-colors border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-        >
-          <p className="font-semibold text-sm text-slate-900 dark:text-white">GitHub Integration &rarr;</p>
-        </button>
-        <Link
-          to="/reference"
-          className="p-4 rounded-xl border text-left transition-colors border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-        >
-          <p className="font-semibold text-sm text-slate-900 dark:text-white">API Reference &rarr;</p>
-        </Link>
+      {/* Quick links — gradient CTA block */}
+      <div className="rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 p-8">
+        <h3 className="text-xl font-bold text-white mb-2">Ready to get started?</h3>
+        <p className="text-sm text-white/70 mb-6">Explore the docs or jump right in.</p>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <button
+            onClick={() => onNavigate('quickstart')}
+            className="p-4 rounded-xl text-left transition-colors bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/20"
+          >
+            <p className="font-semibold text-sm text-white">Quick Start Guide &rarr;</p>
+          </button>
+          <button
+            onClick={() => onNavigate('features')}
+            className="p-4 rounded-xl text-left transition-colors bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
+          >
+            <p className="font-semibold text-sm text-white">Features &rarr;</p>
+          </button>
+          <button
+            onClick={() => onNavigate('github')}
+            className="p-4 rounded-xl text-left transition-colors bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
+          >
+            <p className="font-semibold text-sm text-white">GitHub Integration &rarr;</p>
+          </button>
+          <Link
+            to="/reference"
+            className="p-4 rounded-xl text-left transition-colors bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
+          >
+            <p className="font-semibold text-sm text-white">API Reference &rarr;</p>
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -510,35 +662,31 @@ function OverviewSection({ onNavigate }: { onNavigate: (s: Section) => void }) {
 
 function QuickStartSection() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Quick Start</h1>
-        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          Get your infrastructure visualized in under 30 seconds.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <SectionHeading
+        badge="Getting Started"
+        title="Quick Start"
+        subtitle="Get your infrastructure visualized in under 30 seconds."
+      />
 
       {/* Home page screenshot */}
-      <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-md">
-        <img
-          src="/screenshots/home-dark.png"
-          alt="InfraGraph home page with upload zone, GitHub connect button, and sample infrastructure buttons"
-          className="w-full"
-          loading="lazy"
-        />
-      </div>
+      <ScreenshotShowcase
+        src="/screenshots/home-dark.png"
+        alt="InfraGraph home page with upload zone, GitHub connect button, and sample infrastructure buttons"
+        caption="InfraGraph home page — upload files, connect GitHub, or try sample infrastructure"
+      />
 
       {/* Step 1 */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold">1</span>
-          <h2 className="text-xl font-semibold">Upload your IaC file</h2>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-600 text-white text-lg font-bold">1</span>
+          <h2 className="text-xl font-bold">Upload your IaC file</h2>
         </div>
-        <p className="text-slate-500 dark:text-slate-400 ml-10">
+        <p className="text-slate-500 dark:text-slate-400 ml-14">
           Drop your infrastructure file onto the upload zone, or click to browse.
           InfraGraph auto-detects the IaC tool and cloud provider from your file content.
         </p>
-        <div className="ml-10 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+        <div className="ml-14 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
           <p className="text-sm text-slate-500 dark:text-slate-400">
             <strong className="text-slate-700 dark:text-slate-300">Supported formats:</strong>
           </p>
@@ -565,11 +713,11 @@ function QuickStartSection() {
 
       {/* Step 2 */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold">2</span>
-          <h2 className="text-xl font-semibold">Parse and visualize</h2>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-600 text-white text-lg font-bold">2</span>
+          <h2 className="text-xl font-bold">Parse and visualize</h2>
         </div>
-        <p className="text-slate-500 dark:text-slate-400 ml-10">
+        <p className="text-slate-500 dark:text-slate-400 ml-14">
           Click <strong>Parse</strong> to send the file to the backend. InfraGraph extracts resources,
           resolves relationships, and builds a nested graph with VPCs, subnets, and their children
           laid out automatically.
@@ -578,14 +726,14 @@ function QuickStartSection() {
 
       {/* Step 3 */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-violet-600 text-white text-sm font-bold">3</span>
-          <h2 className="text-xl font-semibold">Explore your infrastructure</h2>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-violet-600 text-white text-lg font-bold">3</span>
+          <h2 className="text-xl font-bold">Explore your infrastructure</h2>
         </div>
-        <p className="text-slate-500 dark:text-slate-400 ml-10">
+        <p className="text-slate-500 dark:text-slate-400 ml-14">
           Interact with the architecture diagram:
         </p>
-        <ul className="ml-10 text-sm text-slate-500 dark:text-slate-400 space-y-2">
+        <ul className="ml-14 text-sm text-slate-500 dark:text-slate-400 space-y-2">
           <li className="flex items-start gap-2">
             <span className="text-violet-500 mt-0.5">&#9679;</span>
             <span><strong className="text-slate-700 dark:text-slate-300">Click a node</strong> to inspect its attributes, tags, and connections in the side panel</span>
@@ -615,25 +763,25 @@ function QuickStartSection() {
 
       {/* Alternative: GitHub */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-slate-600 text-white text-sm font-bold">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 16 16"><path d={GITHUB_ICON_PATH} /></svg>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-600 text-white">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d={GITHUB_ICON_PATH} /></svg>
           </span>
-          <h2 className="text-xl font-semibold">Or connect from GitHub</h2>
+          <h2 className="text-xl font-bold">Or connect from GitHub</h2>
         </div>
-        <p className="text-slate-500 dark:text-slate-400 ml-10">
+        <p className="text-slate-500 dark:text-slate-400 ml-14">
           Click <strong>Connect GitHub Repo</strong> on the home page to browse your repositories
           and select an IaC project directly — no file downloads needed. Works with both
           public and private repos.
         </p>
       </div>
 
-      {/* Try it now */}
-      <div className="p-5 rounded-xl border border-violet-200 dark:border-violet-500/20 bg-violet-50 dark:bg-violet-500/5">
-        <p className="font-semibold text-violet-700 dark:text-violet-300">Try it now</p>
-        <p className="mt-1 text-sm text-violet-600 dark:text-violet-400">
+      {/* Try it now — gradient CTA */}
+      <div className="rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 p-6">
+        <p className="font-bold text-white text-lg">Try it now</p>
+        <p className="mt-1 text-sm text-white/80">
           Don&#39;t have an IaC file handy? Use the sample buttons on the{' '}
-          <Link to="/" className="underline hover:no-underline">home page</Link> to load
+          <Link to="/" className="underline hover:no-underline text-white">home page</Link> to load
           a pre-built AWS, Azure, GCP, or CloudFormation infrastructure.
         </p>
       </div>
@@ -644,343 +792,369 @@ function QuickStartSection() {
 /* ─── Features Section ─────────────────────────────────────────────── */
 
 function FeaturesSection() {
+  const featureNav = [
+    { id: 'blast-radius', title: 'Blast Radius', icon: '!', color: '#EF4444', bg: 'bg-red-100 dark:bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
+    { id: 'security', title: 'Security', icon: '\u26E8', color: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400' },
+    { id: 'ai-advisor', title: 'AI Advisor', icon: '\u2728', color: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400' },
+    { id: 'cost', title: 'Cost Estimation', icon: '$', color: '#10B981', bg: 'bg-emerald-100 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400' },
+    { id: 'table-view', title: 'Table View', icon: '\u2637', color: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
+    { id: 'terraform-plan', title: 'Terraform Plan', icon: '\u21C4', color: '#06B6D4', bg: 'bg-cyan-100 dark:bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400' },
+    { id: 'layouts', title: 'Layouts', icon: '\u2B1A', color: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400' },
+    { id: 'export', title: 'Export', icon: '\u2913', color: '#6366F1', bg: 'bg-indigo-100 dark:bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400' },
+    { id: 'masking', title: 'Masking', icon: '\uD83D\uDD12', color: '#64748B', bg: 'bg-slate-200 dark:bg-slate-700', text: 'text-slate-600 dark:text-slate-400' },
+    { id: 'history', title: 'History', icon: '\u23F0', color: '#14B8A6', bg: 'bg-teal-100 dark:bg-teal-500/10', text: 'text-teal-600 dark:text-teal-400' },
+  ];
+
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
-    <div className="space-y-10">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Features</h1>
-        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          InfraGraph goes beyond visualization — analyze blast radius, estimate costs, scan for security issues,
-          and export interactive diagrams.
-        </p>
+    <div className="space-y-12">
+      <SectionHeading
+        badge="Features"
+        title="Features"
+        subtitle="InfraGraph goes beyond visualization — analyze blast radius, estimate costs, scan for security issues, and export interactive diagrams."
+      />
+
+      {/* ── Quick-Jump Grid ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        {featureNav.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => scrollTo(f.id)}
+            className="docs-card-glow flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20 text-center transition-colors hover:border-violet-300 dark:hover:border-violet-500/30"
+          >
+            <span className={`flex items-center justify-center w-9 h-9 rounded-lg ${f.bg} ${f.text} text-sm font-bold`}>
+              {f.icon}
+            </span>
+            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{f.title}</span>
+          </button>
+        ))}
       </div>
+
+      {/* ═══════════ TIER 1 — Hero Features ═══════════ */}
 
       {/* ── Blast Radius ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 dark:bg-red-500/10">
-            <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Blast Radius Analysis</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Select any resource and click <strong className="text-slate-700 dark:text-slate-300">Blast Radius</strong> in the detail panel
-          to visualize its impact zone. InfraGraph traces all transitive dependencies and highlights affected resources
-          with depth-based color coding:
-        </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[
-            { color: '#EF4444', label: 'Root', desc: 'The selected resource (depth 0)' },
-            { color: '#F97316', label: 'Depth 1', desc: 'Directly connected resources' },
-            { color: '#EAB308', label: 'Depth 2', desc: 'Two hops away' },
-            { color: '#22C55E', label: 'Depth 3+', desc: 'Indirectly affected resources' },
-          ].map((tier) => (
-            <div key={tier.label} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: tier.color }} />
-              <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{tier.label}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{tier.desc}</p>
+      <div id="blast-radius">
+        <FeatureShowcaseCard
+          title="Blast Radius Analysis"
+          description="Select any resource and click Blast Radius in the detail panel to visualize its impact zone. InfraGraph traces all transitive dependencies and highlights affected resources with depth-based color coding."
+          screenshotSrc="/screenshots/blast-radius.png"
+          screenshotAlt="Blast radius visualization showing colored nodes by depth"
+          accentColor="#EF4444"
+        >
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {[
+              { color: '#EF4444', label: 'Root', desc: 'The selected resource (depth 0)' },
+              { color: '#F97316', label: 'Depth 1', desc: 'Directly connected resources' },
+              { color: '#EAB308', label: 'Depth 2', desc: 'Two hops away' },
+              { color: '#22C55E', label: 'Depth 3+', desc: 'Indirectly affected resources' },
+            ].map((tier) => (
+              <div key={tier.label} className="flex items-center gap-2 p-2 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: tier.color }} />
+                <div>
+                  <p className="text-xs font-medium text-slate-900 dark:text-white">{tier.label}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">{tier.desc}</p>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          Unaffected resources are dimmed so you can focus on the impact zone. The detail panel shows the total count of affected resources.
-        </p>
-      </div>
-
-      {/* ── Cost Estimation ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-500/10">
-            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Cost Estimation</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Click the <strong className="text-slate-700 dark:text-slate-300">Costs</strong> button in the toolbar to see an approximate monthly cost
-          breakdown. The panel shows a total estimate and per-resource costs, sorted from most to least expensive.
-        </p>
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            <strong className="text-slate-700 dark:text-slate-300">Supported providers:</strong> AWS, Azure, and GCP.
-            Pricing is based on on-demand rates for the detected region and instance type. Estimates are approximate
-            and intended for planning purposes only.
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
+            Unaffected resources are dimmed so you can focus on the impact zone.
           </p>
-        </div>
+        </FeatureShowcaseCard>
       </div>
 
       {/* ── Security Scanner ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-500/10">
-            <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Security Scanner</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Click the security badge in the toolbar to scan your infrastructure for common security issues.
-          InfraGraph checks resources against built-in rules and reports findings grouped by severity.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700">
-                <th className="py-2 pr-4 font-semibold text-slate-700 dark:text-slate-300">Severity</th>
-                <th className="py-2 font-semibold text-slate-700 dark:text-slate-300">Example checks</th>
-              </tr>
-            </thead>
-            <tbody className="text-slate-500 dark:text-slate-400">
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                <td className="py-2 pr-4"><Badge color="#EF4444">Critical</Badge></td>
-                <td className="py-2">Publicly accessible databases, wildcard IAM policies</td>
-              </tr>
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                <td className="py-2 pr-4"><Badge color="#F97316">High</Badge></td>
-                <td className="py-2">Unencrypted RDS instances, public S3 buckets</td>
-              </tr>
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                <td className="py-2 pr-4"><Badge color="#EAB308">Medium</Badge></td>
-                <td className="py-2">Security groups allowing 0.0.0.0/0, missing encryption</td>
-              </tr>
-              <tr>
-                <td className="py-2 pr-4"><Badge color="#3B82F6">Low / Info</Badge></td>
-                <td className="py-2">Missing tags, non-standard naming conventions</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          Click any finding to navigate directly to the affected resource on the canvas.
-        </p>
+      <div id="security">
+        <FeatureShowcaseCard
+          title="Security Scanner"
+          description="Click the security badge in the toolbar to scan your infrastructure for common security issues. InfraGraph checks resources against built-in rules and reports findings grouped by severity."
+          screenshotSrc="/screenshots/security-panel.png"
+          screenshotAlt="Security scanner results panel showing findings by severity"
+          accentColor="#F59E0B"
+          reverse
+        >
+          <div className="overflow-x-auto mt-4">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  <th className="py-2 pr-4 font-semibold text-slate-700 dark:text-slate-300 text-xs">Severity</th>
+                  <th className="py-2 font-semibold text-slate-700 dark:text-slate-300 text-xs">Example checks</th>
+                </tr>
+              </thead>
+              <tbody className="text-slate-500 dark:text-slate-400 text-xs">
+                <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="py-1.5 pr-4"><Badge color="#EF4444">Critical</Badge></td>
+                  <td className="py-1.5">Publicly accessible databases, wildcard IAM</td>
+                </tr>
+                <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="py-1.5 pr-4"><Badge color="#F97316">High</Badge></td>
+                  <td className="py-1.5">Unencrypted RDS, public S3 buckets</td>
+                </tr>
+                <tr className="border-b border-slate-100 dark:border-slate-800">
+                  <td className="py-1.5 pr-4"><Badge color="#EAB308">Medium</Badge></td>
+                  <td className="py-1.5">Security groups with 0.0.0.0/0</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5 pr-4"><Badge color="#3B82F6">Low / Info</Badge></td>
+                  <td className="py-1.5">Missing tags, naming conventions</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+            Click any finding to navigate to the affected resource on the canvas.
+          </p>
+        </FeatureShowcaseCard>
+      </div>
+
+      {/* ── AI Infrastructure Advisor ── */}
+      <div id="ai-advisor">
+        <FeatureShowcaseCard
+          title="AI Infrastructure Advisor"
+          description="A local LLM-powered assistant that analyzes your parsed infrastructure and answers questions about architecture, security, costs, and best practices — powered by Ollama, no API keys or cloud services required."
+          screenshotSrc="/screenshots/ai-canvas.png"
+          screenshotAlt="AI Infrastructure Advisor panel on the canvas"
+          accentColor="#8B5CF6"
+        >
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {[
+              { title: 'Canvas Integration', desc: 'Full infrastructure context — ask about resources, relationships, or patterns.' },
+              { title: 'Standalone Page', desc: 'Visit /ai for general cloud Q&A without loading infrastructure.' },
+              { title: 'Fully Dockerized', desc: 'docker compose up starts Ollama and auto-pulls the model.' },
+              { title: 'Swappable Models', desc: 'Default tinyllama — swap to llama3, mistral, or any model.' },
+            ].map((item) => (
+              <div key={item.title} className="p-2 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+                <p className="text-xs font-medium text-slate-900 dark:text-white">{item.title}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <ScreenshotShowcase
+              src="/screenshots/ai-chat.png"
+              alt="AI Infrastructure Advisor standalone page"
+              caption="Standalone AI page for general cloud Q&A"
+            />
+          </div>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-3">
+            Sensitive values are automatically stripped. Resource data stays local — nothing is sent to external services.
+          </p>
+        </FeatureShowcaseCard>
+      </div>
+
+      <GradientDivider />
+
+      {/* ═══════════ TIER 2 — Medium Features ═══════════ */}
+
+      {/* ── Cost Estimation ── */}
+      <div id="cost">
+        <FeatureShowcaseCard
+          title="Cost Estimation"
+          description="Click the Costs button in the toolbar to see an approximate monthly cost breakdown. The panel shows a total estimate and per-resource costs, sorted from most to least expensive."
+          screenshotSrc="/screenshots/cost-panel.png"
+          screenshotAlt="Cost estimation panel showing resource costs"
+          accentColor="#10B981"
+          reverse
+        >
+          <div className="p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50 mt-4">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              <strong className="text-slate-700 dark:text-slate-300">Supported:</strong> AWS, Azure, and GCP.
+              Pricing is based on on-demand rates for the detected region and instance type. Estimates are approximate.
+            </p>
+          </div>
+        </FeatureShowcaseCard>
       </div>
 
       {/* ── Table View ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-500/10">
-            <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0112 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125M13.125 12h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125M20.625 12c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5M12 14.625v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 14.625c0 .621.504 1.125 1.125 1.125m-2.25 0c.621 0 1.125.504 1.125 1.125m0 0v1.5c0 .621-.504 1.125-1.125 1.125" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Table View</h2>
+      <div id="table-view" className="docs-card-glow rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.04), rgba(59,130,246,0.01))' }}>
+        <div className="grid md:grid-cols-2 gap-6 p-6 md:p-8">
+          <div className="space-y-4">
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Table View</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Click <strong className="text-slate-700 dark:text-slate-300">Table</strong> in the toolbar to switch from the graph canvas to
+              a sortable inventory table. Columns include name, type, region, number of connections, and estimated monthly cost.
+            </p>
+            <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5">
+              <li className="flex items-start gap-2">
+                <span className="text-violet-500 shrink-0 mt-0.5">&#9679;</span>
+                <span>Click any column header to sort ascending or descending</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-violet-500 shrink-0 mt-0.5">&#9679;</span>
+                <span>Click a row to select the resource and view its details</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-violet-500 shrink-0 mt-0.5">&#9679;</span>
+                <span>Toggle back to graph view at any time</span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <ScreenshotShowcase
+              src="/screenshots/table-view.png"
+              alt="Table view showing resource inventory"
+            />
+          </div>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Click <strong className="text-slate-700 dark:text-slate-300">Table</strong> in the toolbar to switch from the graph canvas to
-          a sortable inventory table. Columns include name, type, region, number of connections, and estimated monthly cost.
-        </p>
-        <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5 ml-4">
-          <li className="flex items-start gap-2">
-            <span className="text-violet-500 shrink-0 mt-0.5">&#9679;</span>
-            <span>Click any column header to sort ascending or descending</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-violet-500 shrink-0 mt-0.5">&#9679;</span>
-            <span>Click a row to select the resource and view its details</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-violet-500 shrink-0 mt-0.5">&#9679;</span>
-            <span>Toggle back to graph view at any time using the same button</span>
-          </li>
-        </ul>
+      </div>
+
+      {/* ── Terraform Plan ── */}
+      <div id="terraform-plan" className="docs-card-glow rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.04), rgba(6,182,212,0.01))' }}>
+        <div className="grid md:grid-cols-2 gap-6 p-6 md:p-8">
+          <div className="space-y-4">
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Terraform Plan Visualization</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+              Upload a Terraform plan JSON file (<code className="text-xs font-mono">terraform show -json tfplan &gt; plan.json</code>)
+              to see a color-coded diff of what will change in your infrastructure.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { color: '#22C55E', action: 'Create' },
+                { color: '#3B82F6', action: 'Update' },
+                { color: '#EF4444', action: 'Delete' },
+                { color: '#F59E0B', action: 'Replace' },
+                { color: '#8B5CF6', action: 'Read' },
+                { color: '#6B7280', action: 'No-op' },
+              ].map((item) => (
+                <div key={item.action} className="flex items-center gap-2 p-1.5 rounded-lg">
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{item.action}</span>
+                </div>
+              ))}
+            </div>
+            <div className="p-3 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-slate-700/50">
+              <CodeBlock lang="bash">{`terraform plan -out=tfplan
+terraform show -json tfplan > plan.json
+# Upload plan.json to InfraGraph`}</CodeBlock>
+            </div>
+          </div>
+          <div>
+            <ScreenshotShowcase
+              src="/screenshots/terraform-plan.png"
+              alt="Terraform plan visualization with color-coded actions"
+            />
+          </div>
+        </div>
       </div>
 
       {/* ── Layout Algorithms ── */}
-      <div className="space-y-4">
+      <div id="layouts" className="space-y-5">
         <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/10">
-            <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-500/10">
+            <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
             </svg>
           </span>
-          <h2 className="text-xl font-semibold">Layout Algorithms</h2>
+          <h2 className="text-2xl font-bold">Layout Algorithms</h2>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Use the layout dropdown in the toolbar to switch between three layout modes:
         </p>
         <div className="grid sm:grid-cols-3 gap-3">
           {[
-            { title: 'Top-Down', desc: 'Default hierarchical layout. VPCs at top, subnets and resources nested below.' },
-            { title: 'Left-to-Right', desc: 'Horizontal layout. Containers flow left to right — great for wide diagrams.' },
-            { title: 'Flat Grid', desc: 'Strips container nesting and arranges all resources in a clean grid.' },
+            { title: 'Top-Down', desc: 'Default hierarchical layout. VPCs at top, subnets and resources nested below.', accent: '#8B5CF6' },
+            { title: 'Left-to-Right', desc: 'Horizontal layout. Containers flow left to right — great for wide diagrams.', accent: '#3B82F6' },
+            { title: 'Flat Grid', desc: 'Strips container nesting and arranges all resources in a clean grid.', accent: '#06B6D4' },
           ].map((layout) => (
-            <div key={layout.title} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-              <p className="text-sm font-medium text-slate-900 dark:text-white">{layout.title}</p>
+            <div key={layout.title} className="docs-card-glow p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20">
+              <div className="h-1 w-8 rounded-full mb-3" style={{ backgroundColor: layout.accent }} />
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{layout.title}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{layout.desc}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Terraform Plan Visualization ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-500/10">
-            <svg className="w-4 h-4 text-cyan-600 dark:text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Terraform Plan Visualization</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Upload a Terraform plan JSON file (<code className="text-xs font-mono">terraform show -json tfplan &gt; plan.json</code>)
-          to see a color-coded diff of what will change in your infrastructure.
-        </p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[
-            { color: '#22C55E', action: 'Create', desc: 'New resources to be added' },
-            { color: '#3B82F6', action: 'Update', desc: 'Existing resources modified in place' },
-            { color: '#EF4444', action: 'Delete', desc: 'Resources to be destroyed' },
-            { color: '#F59E0B', action: 'Replace', desc: 'Destroy and recreate (tainted)' },
-            { color: '#8B5CF6', action: 'Read', desc: 'Data sources to be refreshed' },
-            { color: '#6B7280', action: 'No-op', desc: 'Unchanged resources' },
-          ].map((item) => (
-            <div key={item.action} className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-              <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{item.action}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">How to generate a plan JSON</p>
-          <CodeBlock lang="bash">{`terraform plan -out=tfplan
-terraform show -json tfplan > plan.json
-# Upload plan.json to InfraGraph`}</CodeBlock>
-        </div>
-      </div>
+      <GradientDivider />
 
-      {/* ── Export Options ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-500/10">
-            <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Export Options</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Click the <strong className="text-slate-700 dark:text-slate-300">Export</strong> dropdown in the toolbar to download your diagram:
-        </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-            <p className="text-sm font-medium text-slate-900 dark:text-white">PNG Image</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Static image of the current viewport. Perfect for documentation, wikis, and presentations.
-            </p>
+      {/* ═══════════ TIER 3 — Compact Features ═══════════ */}
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        {/* ── Export Options ── */}
+        <div id="export" className="docs-card-glow p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-500/10">
+              <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </span>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Export Options</h3>
           </div>
-          <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-            <p className="text-sm font-medium text-slate-900 dark:text-white">Interactive HTML</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Self-contained HTML file with full interactivity — pan, zoom, and click nodes to inspect details.
-              Opens in any browser, no server needed.
-            </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Click <strong className="text-slate-700 dark:text-slate-300">Export</strong> to download your diagram:
+          </p>
+          <div className="space-y-2">
+            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">PNG Image</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Static image for documentation, wikis, and presentations.
+              </p>
+            </div>
+            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">Interactive HTML</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Self-contained file with pan, zoom, and click-to-inspect. Opens in any browser.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Sensitive Value Masking ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-700">
-            <svg className="w-4 h-4 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Sensitive Value Masking</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Passwords, API keys, and other sensitive attributes are automatically masked in the detail panel.
-          Values appear as <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</code> by
-          default.
-        </p>
-        <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5 ml-4">
-          <li className="flex items-start gap-2">
-            <span className="text-green-500 shrink-0">&#10003;</span>
-            <span>Click the lock icon next to any masked value to reveal it</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-green-500 shrink-0">&#10003;</span>
-            <span>Click again to re-mask the value</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-green-500 shrink-0">&#10003;</span>
-            <span>All values are re-masked automatically when you select a different resource</span>
-          </li>
-        </ul>
-      </div>
-
-      {/* ── Session History ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-500/10">
-            <svg className="w-4 h-4 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">Session History</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          When signed in with Google, InfraGraph automatically saves every diagram you parse.
-          Visit the <strong className="text-slate-700 dark:text-slate-300">History</strong> page to browse, reload, or delete past sessions.
-        </p>
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+        {/* ── Sensitive Value Masking ── */}
+        <div id="masking" className="docs-card-glow p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-200 dark:bg-slate-700">
+              <svg className="w-5 h-5 text-slate-600 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+            </span>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sensitive Value Masking</h3>
+          </div>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Each saved session includes the cloud provider, filename, resource count, and timestamp.
-            Click any session to reload the full diagram with all nodes, edges, and layout.
+            Passwords, API keys, and sensitive attributes are automatically masked as <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</code>.
           </p>
+          <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5">
+            <li className="flex items-start gap-2">
+              <span className="text-green-500 shrink-0">&#10003;</span>
+              <span>Click lock icon to reveal/hide values</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-500 shrink-0">&#10003;</span>
+              <span>Auto-remasked when switching resources</span>
+            </li>
+          </ul>
         </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          Session history requires Google sign-in via Supabase. InfraGraph works fully in guest mode without sign-in — sessions
-          just won&#39;t be persisted.
-        </p>
-      </div>
 
-      {/* ── AI Infrastructure Advisor ── */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-500/10">
-            <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z" />
-            </svg>
-          </span>
-          <h2 className="text-xl font-semibold">AI Infrastructure Advisor</h2>
-        </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          A local LLM-powered assistant that analyzes your parsed infrastructure and answers questions about
-          architecture, security, costs, and best practices — powered by <strong className="text-slate-700 dark:text-slate-300">Ollama</strong>, no API keys or cloud services required.
-        </p>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {[
-            { title: 'Canvas Integration', desc: 'Click the AI button in the canvas toolbar. The assistant receives your full infrastructure as context — ask about specific resources, relationships, or patterns.' },
-            { title: 'Standalone Page', desc: 'Visit /ai for general cloud Q&A without loading infrastructure first. Great for learning best practices or exploring concepts.' },
-            { title: 'Fully Dockerized', desc: 'docker compose up starts Ollama alongside the app and auto-pulls the tinyllama model. No separate install needed.' },
-            { title: 'Swappable Models', desc: 'Default model is tinyllama (~637MB). Set OLLAMA_DEFAULT_MODEL to llama3, mistral, or any Ollama-supported model for better results.' },
-          ].map((item) => (
-            <div key={item.title} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-              <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.desc}</p>
+        {/* ── Session History ── */}
+        <div id="history" className="docs-card-glow p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20 space-y-4 sm:col-span-2">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-500/10">
+              <svg className="w-5 h-5 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Session History</h3>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                When signed in with Google, InfraGraph automatically saves every diagram you parse.
+                Visit the <strong className="text-slate-700 dark:text-slate-300">History</strong> page to browse, reload, or delete past sessions.
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                Each session includes the cloud provider, filename, resource count, and timestamp.
+                Click any session to reload the full diagram.
+              </p>
             </div>
-          ))}
+            <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Session history requires Google sign-in via Supabase. InfraGraph works fully in guest mode — sessions just won&#39;t be persisted.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            <strong className="text-slate-700 dark:text-slate-300">Example prompts:</strong>{' '}
-            &quot;Are there any security issues with my VPC setup?&quot; · &quot;How can I reduce costs?&quot; · &quot;Explain the architecture of this infrastructure&quot; · &quot;What are best practices for my S3 buckets?&quot;
-          </p>
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          Sensitive values (passwords, API keys, tokens) are automatically stripped from the context sent to the AI.
-          Resource data stays local — nothing is sent to external services.
-        </p>
       </div>
     </div>
   );
@@ -990,18 +1164,16 @@ terraform show -json tfplan > plan.json
 
 function GitHubSection() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">GitHub Integration</h1>
-        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          Connect your GitHub account to browse repositories, scan for IaC projects,
-          and visualize infrastructure — all without downloading files.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <SectionHeading
+        badge="Integration"
+        title="GitHub Integration"
+        subtitle="Connect your GitHub account to browse repositories, scan for IaC projects, and visualize infrastructure — all without downloading files."
+      />
 
       {/* How it works */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Connect Your Account</h2>
+        <h2 className="text-2xl font-bold">Connect Your Account</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           InfraGraph uses GitHub OAuth to securely access your repositories. Your token is stored
           locally in your browser and never persisted on the server.
@@ -1028,7 +1200,7 @@ function GitHubSection() {
 
       {/* Features */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Features</h2>
+        <h2 className="text-2xl font-bold">Features</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           {[
             { title: 'Private Repos', desc: 'Access private repositories after connecting your GitHub account. Private repos are shown with a lock icon.' },
@@ -1036,8 +1208,8 @@ function GitHubSection() {
             { title: 'Auto-Scan', desc: 'InfraGraph scans the entire repository tree to find directories containing .tf files — no manual path entry needed.' },
             { title: 'Direct Parse', desc: 'Parse IaC files directly from GitHub. Files are fetched on demand — nothing is cloned or stored locally.' },
           ].map((item) => (
-            <div key={item.title} className="p-3 rounded-lg border border-slate-200 dark:border-slate-700">
-              <p className="text-sm font-medium text-slate-900 dark:text-white">{item.title}</p>
+            <div key={item.title} className="docs-card-glow p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.title}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.desc}</p>
             </div>
           ))}
@@ -1046,7 +1218,7 @@ function GitHubSection() {
 
       {/* Public URL fallback */}
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold">Public Repos (No Auth Required)</h2>
+        <h2 className="text-2xl font-bold">Public Repos (No Auth Required)</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           You can scan any public GitHub repository without connecting your account.
           Just paste the repo URL in the input field:
@@ -1058,10 +1230,10 @@ function GitHubSection() {
         </p>
       </div>
 
-      {/* Security */}
-      <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Security & Privacy</p>
-        <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5">
+      {/* Security — green gradient background */}
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-500/5 dark:to-green-500/5 border border-emerald-200 dark:border-emerald-500/20">
+        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300 mb-3">Security & Privacy</p>
+        <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-2">
           <li className="flex items-start gap-2">
             <span className="text-green-500 shrink-0">&#10003;</span>
             <span>GitHub tokens are stored in your browser only — never on InfraGraph servers</span>
@@ -1144,16 +1316,14 @@ function ProvidersSection() {
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Providers</h1>
-        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          InfraGraph supports three major cloud providers with automatic detection and
-          provider-branded visual components.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <SectionHeading
+        badge="Cloud Providers"
+        title="Providers"
+        subtitle="InfraGraph supports three major cloud providers with automatic detection and provider-branded visual components."
+      />
 
-      <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+      <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
         <p className="text-sm text-slate-500 dark:text-slate-400">
           <strong className="text-slate-700 dark:text-slate-300">Auto-detection:</strong>{' '}
           InfraGraph detects the cloud provider from resource type prefixes
@@ -1165,20 +1335,34 @@ function ProvidersSection() {
       </div>
 
       {providers.map((p) => (
-        <div key={p.name} className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Badge color={p.color}>{p.name}</Badge>
-            <h2 className="text-xl font-semibold">{p.name}</h2>
-            <span className="text-sm text-slate-400 dark:text-slate-500">{p.types.length} resource types</span>
+        <div key={p.name} className="docs-card-glow p-6 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/20 space-y-4">
+          <div className="flex items-center gap-4">
+            <span
+              className="flex items-center justify-center w-12 h-12 rounded-xl text-white text-xl font-bold"
+              style={{ backgroundColor: p.color }}
+            >
+              {p.name[0]}
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">{p.name}</h2>
+                <span className="text-sm text-slate-400 dark:text-slate-500">{p.types.length} resource types</span>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Prefix: <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">{p.prefix}*</code>
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Prefix: <code className="text-xs font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800">{p.prefix}*</code>
-          </p>
           <div className="flex flex-wrap gap-1.5">
             {p.types.map((t) => (
               <span
                 key={t}
-                className="px-2 py-1 rounded text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                className="px-2.5 py-1 rounded-md text-xs font-medium border"
+                style={{
+                  backgroundColor: `${p.color}08`,
+                  borderColor: `${p.color}20`,
+                  color: p.color,
+                }}
               >
                 {t}
               </span>
@@ -1188,7 +1372,7 @@ function ProvidersSection() {
       ))}
 
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold">Container Nesting</h2>
+        <h2 className="text-2xl font-bold">Container Nesting</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           InfraGraph automatically nests resources inside their parent containers based on provider configuration:
         </p>
@@ -1676,26 +1860,24 @@ function KeyboardSection({ dark }: { dark: boolean }) {
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Keyboard Shortcuts</h1>
-        <p className="mt-3 text-lg text-slate-500 dark:text-slate-400">
-          Navigate the architecture diagram efficiently.
-        </p>
-      </div>
+    <div className="space-y-10">
+      <SectionHeading
+        title="Keyboard Shortcuts"
+        subtitle="Navigate the architecture diagram efficiently."
+      />
 
-      <div className="divide-y divide-slate-200 dark:divide-slate-700">
+      <div className="divide-y divide-slate-200 dark:divide-slate-700 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {shortcuts.map((s, i) => (
-          <div key={i} className="flex items-center justify-between py-3">
-            <span className="text-sm text-slate-600 dark:text-slate-300">{s.desc}</span>
-            <div className="flex items-center gap-1">
+          <div key={i} className="flex items-center justify-between px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{s.desc}</span>
+            <div className="flex items-center gap-1.5">
               {s.keys.map((k, j) => (
                 <kbd
                   key={j}
-                  className={`px-2 py-1 rounded text-xs font-mono font-medium border ${
+                  className={`px-3 py-1.5 rounded-md text-xs font-mono font-semibold border-b-2 ${
                     dark
-                      ? 'bg-slate-800 border-slate-600 text-slate-300'
-                      : 'bg-slate-100 border-slate-200 text-slate-600'
+                      ? 'bg-slate-800 border-slate-600 text-slate-300 shadow-sm shadow-black/20'
+                      : 'bg-white border-slate-300 text-slate-700 shadow-sm'
                   }`}
                 >
                   {k}
@@ -1707,7 +1889,7 @@ function KeyboardSection({ dark }: { dark: boolean }) {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold">Canvas Controls</h2>
+        <h2 className="text-2xl font-bold">Canvas Controls</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           The bottom-left control panel provides:
         </p>
@@ -1719,7 +1901,7 @@ function KeyboardSection({ dark }: { dark: boolean }) {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-xl font-semibold">Minimap</h2>
+        <h2 className="text-2xl font-bold">Minimap</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           Click <strong className="text-slate-700 dark:text-slate-300">Show minimap</strong> in the toolbar to toggle the minimap overlay.
           The minimap shows an overview of the entire graph in the bottom-right corner — click anywhere on

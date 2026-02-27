@@ -206,10 +206,61 @@
   animation: slide-in-right 0.2s ease-out;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   Docs page — showcase utilities
+   ═══════════════════════════════════════════════════════════ */
+
+/* Card with hover lift + glow shadow */
+.docs-card-glow {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.docs-card-glow:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(139, 92, 246, 0.12);
+}
+.dark .docs-card-glow:hover {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.2);
+}
+
+/* Gradient border wrapper (violet → blue → cyan) */
+.gradient-border {
+  padding: 2px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6, #06b6d4);
+}
+
+/* Screenshot frame with hover scale + glow */
+.screenshot-frame {
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.screenshot-frame:hover {
+  transform: scale(1.01);
+  box-shadow: 0 12px 40px rgba(139, 92, 246, 0.15);
+}
+.dark .screenshot-frame:hover {
+  box-shadow: 0 12px 40px rgba(139, 92, 246, 0.25);
+}
+
+/* Stats bar gradient background */
+.stats-bar {
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  border-radius: 12px;
+  padding: 16px 24px;
+  color: white;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .text-gradient { animation: none; }
   .text-gradient-light { animation: none; }
   .landing-card:hover { transform: none; }
   .animate-slide-in { animation: none; }
+  .docs-card-glow:hover { transform: none; }
+  .screenshot-frame:hover { transform: none; }
 }
